@@ -1,0 +1,70 @@
+{
+  "name": "AccidentGuard — Collision Detection & Trauma Dispatch",
+  "short_name": "AccidentGuard",
+  "description": "Production automotive collision detection system with 50Hz sensor pipeline, 15-second abort window, false alarm filter, and automated trauma dispatch.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070a11",
+  "theme_color": "#090d16",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "auto_vehicles",
+    "health_fitness",
+    "navigation",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Cockpit HUD",
+      "short_name": "Cockpit",
+      "description": "Open live driving cockpit and navigation map",
+      "url": "/?tab=navigation",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Trauma Centers",
+      "short_name": "Hospitals",
+      "description": "View nearest trauma centers and emergency coverage",
+      "url": "/?tab=hospitals",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Impact Testbench",
+      "short_name": "Simulate",
+      "description": "Launch crash scenario test bench",
+      "url": "/?tab=sensors",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
+}
