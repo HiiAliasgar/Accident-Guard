@@ -11,22 +11,22 @@
 
 ## 🚀 What is AccidentGuard?
 
-AccidentGuard is a **production-grade safety application** that transforms any smartphone into an intelligent crash detection system. It continuously monitors vehicle motion at **50Hz** using device sensors and automatically dispatches emergency services when a severe collision is detected.
+AccidentGuard is a **student prototype** exploring smartphone-based crash detection, sensor telemetry, location previews, and emergency-alert workflows. It is not a certified safety product. It does **not automatically dispatch emergency services**: the dispatch screen and transmission timeline are demonstrations, and SMS/phone actions require user interaction. The thresholds are experimental and have not been clinically or road-safety validated.
 
 ### Key Features
 
 | Feature | Description |
 |---|---|
-| 🎯 **50Hz Crash Detection** | Real-time accelerometer + gyroscope fusion with NHTSA-calibrated 3.5g impact threshold |
+| 🎯 **50Hz Crash Detection** | Real-time accelerometer + gyroscope fusion with example 3.5g impact threshold (not calibrated or validated) |
 | 🧠 **False Positive Rejection** | Post-impact stillness analysis rejects phone drops, potholes, and speed bumps |
 | 🗺️ **Dual-Engine Maps** | Google Maps Platform + MapTiler/Leaflet fallback with automotive dark cockpit styling |
 | 🏥 **Trauma Center Routing** | Haversine-sorted nearest hospitals with one-tap ER call and live ETA |
-| 📡 **Automated SOS Dispatch** | Emergency SMS with GPS coordinates, impact severity, and Google Maps link |
+| 📡 **Emergency Alert Preview** | Prepares an SMS draft with coordinates; user must review and send it |
 | ⏱️ **15s Abort Countdown** | Conscious drivers can cancel false alarms; unconscious victims get rapid dispatch |
 | 📊 **Live Sensor Telemetry** | Real-time oscilloscope waveform, G-force meter, and sensor diagnostics |
 | 🚗 **Driving HUD** | Speed, heading, road name, speed limits, and road hazard warnings |
 | 🔔 **Audio + Haptic Alerts** | Web Audio API siren with Capacitor native vibration |
-| 📱 **Play Store Ready** | Capacitor Android shell with WakeLock, background GPS, and offline support |
+| 📱 **Android Prototype** | Capacitor Android shell; background behavior and Play Store compliance still require device testing and review |
 
 ---
 
@@ -126,7 +126,7 @@ cp .env.example .env
 | `VITE_MAPTILER_API_KEY` | Optional | MapTiler Cloud key for HD map tiles |
 | `VITE_GOOGLE_MAPS_API_KEY` | Optional | Google Maps Platform key for native Google Maps |
 
-> **Note:** The app works perfectly without any API keys — it falls back to free OpenStreetMap/CartoDB tiles.
+> **Note:** The map may use the configured fallback tiles without API keys. Sensor permissions, GPS availability, mobile background behavior, API-key setup, and route data still require testing on target devices.
 
 ### Build for Production
 
@@ -158,7 +158,15 @@ Full-screen SOS countdown with automated trauma center notification.
 
 ---
 
-## 🔬 Crash Detection Calibration
+## ⚠️ Safety & Test Status
+
+- This repository is an experimental prototype and must not be relied on in a real emergency.
+- Hospital entries, road alerts, coordinates, speed limits and contact examples may be demo data. Verify and replace them before any field test.
+- The 3.5g threshold and other parameters are heuristics, not validated universal crash criteria.
+- The test suite covers a small set of unit-level behaviors; it does not establish real-world detection accuracy, sensor reliability, false-positive rate, or emergency response capability.
+- GPS denial/unavailability must be surfaced as unavailable. Never treat fallback/demo coordinates as a live location.
+
+## 🔬 Experimental Detection Parameters
 
 | Parameter | Value | Rationale |
 |---|---|---|
