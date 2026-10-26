@@ -5,6 +5,12 @@ on:
   push:
     branches: [main, "improve/**"]
 
+# A newer commit on the same branch supersedes an older build. This avoids
+# duplicate emulator jobs competing for runner capacity.
+concurrency:
+  group: accident-guard-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -21,7 +27,7 @@ jobs:
           node-version: 20
           cache: npm
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Run unit tests
         run: npm test
       - name: Type-check and build production bundle
@@ -50,7 +56,7 @@ jobs:
       - name: Install required Android platform and build tools
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Install web dependencies
-        run: npm install
+        run: npm ci
       - name: Run unit tests and build web assets
         run: |
           npm test
@@ -61,7 +67,7 @@ jobs:
         run: |
           chmod +x android/gradlew
           cd android
-          ./gradlew assembleDebug testDebugUnitTest --no-daemon
+          ./gradlew assembleDebug testDebugUnitTest --no-daemon --stacktrace
       - name: Run Android emulator smoke test
         uses: reactivecircus/android-emulator-runner@v2
         timeout-minutes: 18
@@ -70,9 +76,15 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: cd android && ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
+          script: |
+            cd android
+            set +e
+            ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
+            test_status=$?
+            adb logcat -d -t 5000 > ../android-emulator-logcat.txt
+            exit "$test_status"
 
-      - name: Upload Android test reports
+      - name: Upload Android test reports and emulator logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -81,6 +93,7 @@ jobs:
             android/app/build/reports/
             android/app/build/outputs/androidTest-results/
             android/app/build/test-results/
+            android-emulator-logcat.txt
           if-no-files-found: warn
           retention-days: 7
 
