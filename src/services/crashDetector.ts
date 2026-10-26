@@ -6,17 +6,18 @@ import { getCurrentCoordinates, DEFAULT_HOSPITALS, getSortedHospitals } from './
 export const DEFAULT_THRESHOLDS: DetectionThresholds = {
   /**
    * IMPACT G THRESHOLD (3.5g):
-   * Rationale: This is an experimental starting value only. Smartphone placement, device hardware, crash direction, vehicle dynamics, and road conditions vary substantially. This threshold has not been validated against NHTSA/FMVSS data or real-world driving and cannot reliably distinguish crashes from potholes or phone drops. Setting the trigger threshold to 3.5g is a prototype heuristic, not a safety guarantee. It may
-   * capturing low-to-moderate and severe crashes.
+   * Experimental starting value only. Smartphone placement, hardware, crash direction, vehicle dynamics,
+   * and road conditions vary substantially. This threshold has not been validated against NHTSA/FMVSS
+   * data or real-world driving and cannot reliably distinguish crashes from potholes or phone drops.
+   * It is a prototype heuristic, not a safety guarantee.
    */
   impactThresholdG: 3.5,
 
   /**
    * STILLNESS CONFIRMATION WINDOW (3.0 seconds):
-   * Rationale: In a genuine vehicular collision, the vehicle comes to an abrupt halt post-impact,
-   * resulting in near-zero motion variance. In contrast, dropping a phone on the ground or into a bag
-   * is typically followed by immediate picking up, walking, or continued transit (high variance).
-   * A 3-second post-impact observation window reliably discerns true post-crash immobilisation.
+   * Experimental heuristic only. Post-impact motion varies by crash type, vehicle, phone mounting,
+   * and user behavior. This window has not been validated and cannot reliably distinguish a crash
+   * from a dropped phone, pothole, or other event.
    */
   stillnessDurationSec: 3.0,
 
