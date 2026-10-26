@@ -77,7 +77,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   const peakG = incident?.peakG ?? 4.8;
 
   const smsPayload = generateEmergencySmsPayload({
-    userName: 'Alex Mercer (Driver)',
+    userName: 'AccidentGuard demo user',
     coords,
     peakG,
     nearestHospital,
