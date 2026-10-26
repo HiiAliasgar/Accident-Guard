@@ -52,7 +52,7 @@ jobs:
       - name: Run unit tests and build web assets
         run: |
           npm test
-          npm run build
+          npm run build:android
       - name: Sync Capacitor Android project
         run: npx cap sync android
       - name: Build Android debug APK and run local JVM tests
