@@ -95,7 +95,10 @@ export const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState<boolean>(emergencyAudio.getIsMuted());
 
   // Location & Hospitals
+  // These coordinates are a map preview only until a real GPS fix is granted.
   const [coords, setCoords] = useState<Coordinates>({ latitude: 37.7749, longitude: -122.4194 });
+  const [locationAvailable, setLocationAvailable] = useState<boolean>(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [hospitals, setHospitals] = useState<Hospital[]>(DEFAULT_HOSPITALS);
   const [contacts, setContacts] = useState<EmergencyContact[]>(INITIAL_CONTACTS);
 
@@ -137,12 +140,27 @@ export const App: React.FC = () => {
 
   // Initialize GPS Coordinates and Hospitals
   useEffect(() => {
-    getCurrentCoordinates().then((pos) => {
-      setCoords(pos);
-      const sorted = getSortedHospitals(pos, DEFAULT_HOSPITALS);
-      setHospitals(sorted);
-      navigationService.setDestinationHospital(sorted[0]);
-    });
+    let cancelled = false;
+    getCurrentCoordinates()
+      .then((pos) => {
+        if (cancelled) return;
+        setCoords(pos);
+        setLocationAvailable(true);
+        setLocationError(null);
+        const sorted = getSortedHospitals(pos, DEFAULT_HOSPITALS);
+        setHospitals(sorted);
+        if (sorted[0]) navigationService.setDestinationHospital(sorted[0]);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setLocationAvailable(false);
+        setLocationError(error instanceof Error ? error.message : 'Device location is unavailable.');
+        // Keep clearly labelled demo fixtures; never imply they are nearby or verified.
+        setHospitals(DEFAULT_HOSPITALS);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Subscribe to Navigation & Driving Telemetry Updates
@@ -259,7 +277,7 @@ export const App: React.FC = () => {
         return (
           <div className="status-pill safe">
             <span className="pulse-dot bg-emerald-400"></span>
-            <span>SYSTEM MONITORING • ROAD SAFE</span>
+            <span>EXPERIMENTAL MONITORING • NOT A SAFETY GUARANTEE</span>
           </div>
         );
       case 'IMPACT_DETECTED':
@@ -281,7 +299,7 @@ export const App: React.FC = () => {
         return (
           <div className="status-pill danger">
             <span className="pulse-dot bg-red-500"></span>
-            <span>TRAUMA DISPATCH ACTIVE</span>
+            <span>DEMO ALERT ACTIVE • NO DISPATCH SENT</span>
           </div>
         );
     }
@@ -461,8 +479,14 @@ export const App: React.FC = () => {
                     <div>
                       <h2 className="text-sm font-bold text-white">Trauma Centers & EMS Coverage</h2>
                       <p className="text-xs text-slate-400">
-                        GPS: {coords.latitude.toFixed(4)}, {coords.longitude.toFixed(4)} (Accuracy ±12m)
+                        {locationAvailable
+                          ? `Device GPS: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)} (±${Math.round(coords.accuracy ?? 0)}m)`
+                          : 'Device GPS unavailable — demo locations only'}
                       </p>
+                      {!locationAvailable && locationError && (
+                        <p role="status" className="text-xs text-amber-300 mt-1">{locationError}</p>
+                      )}
+                      <p className="text-xs text-slate-500">Demo facilities are not verified or guaranteed to be nearby.</p>
                     </div>
                     <span className="hospital-count-badge">{hospitals.length} Centers</span>
                   </div>

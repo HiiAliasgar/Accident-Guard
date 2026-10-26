@@ -98,7 +98,7 @@ export const AlertScreen: React.FC<AlertScreenProps> = ({
 
           <h2 className="alert-headline">Are you OK?</h2>
           <p className="alert-subtext">
-            Automated emergency dispatch in progress. If this is a false alarm or you do not need help, tap below immediately.
+            This is an experimental alert countdown. No emergency service or hospital is contacted by this app. If this is a false alarm, cancel below.
           </p>
         </div>
 
@@ -126,7 +126,7 @@ export const AlertScreen: React.FC<AlertScreenProps> = ({
             id="btn-dispatch-now"
           >
             <PhoneCall size={18} className="mr-2" />
-            <span>DISPATCH EMS IMMEDIATELY (DON'T WAIT)</span>
+            <span>OPEN DEMO ALERT REVIEW</span>
           </button>
         </div>
 
