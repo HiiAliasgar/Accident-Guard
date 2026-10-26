@@ -487,8 +487,6 @@ export const App: React.FC = () => {
                         <p role="status" className="text-xs text-amber-300 mt-1">{locationError}</p>
                       )}
                       <p className="text-xs text-slate-500">Demo facilities are not verified or guaranteed to be nearby.</p>
-                      {/*
-                      </p>
                     </div>
                     <span className="hospital-count-badge">{hospitals.length} Centers</span>
                   </div>
