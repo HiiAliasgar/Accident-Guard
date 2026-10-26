@@ -1,4 +1,4 @@
-// Emergency Response Dispatch Screen: Direct Hospital Alerting, Live Web Notification, SMS & Call Intent, and ER Telemetry Feed
+// Emergency response review screen. This prototype does not contact hospitals or emergency services.
 import React, { useState, useEffect } from 'react';
 import { Hospital, EmergencyContact, IncidentRecord, DispatchTransmissionStatus } from '../types';
 import { generateEmergencySmsPayload, Coordinates } from '../services/locationService';
@@ -38,38 +38,37 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   onResetToNormal
 }) => {
   const [copied, setCopied] = useState<boolean>(false);
-  const [notificationSent, setNotificationSent] = useState<boolean>(false);
   const [voiceSpoken, setVoiceSpoken] = useState<boolean>(false);
   const [isVoiceMuted, setIsVoiceMuted] = useState<boolean>(false);
 
   // Progressive simulated transmission steps to Hospital ER
-  const [transmissionSteps, setTransmissionSteps] = useState<DispatchTransmissionStatus[]>([
+  const [transmissionSteps] = useState<DispatchTransmissionStatus[]>([
     {
       step: 1,
-      title: 'GPS Geolocation & Satellite Fix',
+      title: 'Location available (permission dependent)',
       detail: `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (Accuracy ±${coords.accuracy ?? 12}m)`,
       status: 'completed',
       timestamp: Date.now() - 3000
     },
     {
       step: 2,
-      title: 'Kinetic Telemetry Encryption',
+      title: 'Impact telemetry prepared (not transmitted)',
       detail: `Peak Impact: ${(incident?.peakG ?? 4.8).toFixed(1)}g • Rotational Velocity: ${incident?.peakRotation ?? 280}°/s`,
       status: 'completed',
       timestamp: Date.now() - 2000
     },
     {
       step: 3,
-      title: 'Trauma ER Dispatch Gateway',
-      detail: `Alert packet delivered to ${nearestHospital.name} Trauma Desk`,
-      status: 'completed',
+      title: 'Emergency message prepared for user review',
+      detail: 'No hospital or emergency-service endpoint is connected in this prototype.',
+      status: 'active',
       timestamp: Date.now() - 1000
     },
     {
       step: 4,
-      title: 'EMS Ambulance Unit Activated',
-      detail: `Ambulance Unit #42 en route from ${nearestHospital.name} (ETA ~${nearestHospital.etaMinutes ?? 4} min)`,
-      status: 'active',
+      title: 'No dispatch integration configured',
+      detail: 'No ambulance has been requested. Use verified local emergency channels in a real emergency.',
+      status: 'pending',
       timestamp: Date.now()
     }
   ]);
@@ -96,8 +95,8 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'granted') {
         try {
-          new Notification('🚨 CRITICAL CRASH ALERT — HOSPITAL DISPATCHED', {
-            body: `Emergency alert sent to ${nearestHospital.name}. Telemetry (${peakG.toFixed(1)}g) & GPS coordinates transmitted.`,
+          new Notification('AccidentGuard demo — crash alert preview', {
+            body: `Simulated crash alert: ${peakG.toFixed(1)}g. No emergency service was contacted.`,
             icon: '/vite.svg',
             requireInteraction: true
           });
@@ -109,10 +108,9 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
         Notification.requestPermission().then((permission) => {
           if (permission === 'granted') {
             new Notification('🚨 CRITICAL CRASH ALERT — HOSPITAL DISPATCHED', {
-              body: `Emergency alert sent to ${nearestHospital.name}. Telemetry (${peakG.toFixed(1)}g) & GPS transmitted.`,
+              body: `Simulated crash alert: ${peakG.toFixed(1)}g. No emergency service was contacted.`,
               icon: '/vite.svg'
             });
-            setNotificationSent(true);
           }
         });
       }
@@ -123,7 +121,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
       try {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(
-          `Emergency alert active. Vehicular impact of ${peakG.toFixed(1)} G detected. Precision coordinates transmitted to ${nearestHospital.name}. Emergency medical services are being dispatched.`
+          `AccidentGuard demo alert. Simulated vehicle impact of ${peakG.toFixed(1)} G. This is a prototype. No emergency services have been contacted.`
         );
         utterance.rate = 1.0;
         utterance.pitch = 1.0;
@@ -136,7 +134,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   }, [peakG, nearestHospital.name, voiceSpoken, isVoiceMuted]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(smsPayload.messageText);
+    navigator.clipboard?.writeText(smsPayload.messageText).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -155,7 +153,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
         <div className="dispatch-badge-row">
           <div className="flex items-center space-x-2">
             <span className="dispatch-live-pulse"></span>
-            <span className="dispatch-live-text">DIRECT TRAUMA DISPATCH ACTIVE</span>
+            <span className="dispatch-live-text">DEMO ALERT — NO DISPATCH SENT</span>
           </div>
           <button
             type="button"
@@ -167,9 +165,9 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
           </button>
         </div>
 
-        <h1 className="dispatch-title">AUTOMATED HOSPITAL SOS TRANSMISSION</h1>
+        <h1 className="dispatch-title">EMERGENCY ALERT PREVIEW</h1>
         <p className="dispatch-subtitle">
-          Medical telemetry, impact G-force vector, and satellite GPS coordinates have been routed to the nearest acute emergency center.
+          This screen previews a possible alert. This prototype does not transmit medical telemetry or contact emergency services.
         </p>
       </div>
 
@@ -199,7 +197,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
             id="btn-direct-sms"
           >
             <Send size={18} />
-            <span>Send Direct SMS to ER</span>
+            <span>Open SMS draft (not sent automatically)</span>
           </a>
 
           <a
@@ -276,7 +274,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
       {/* SMS Payload Preview Box */}
       <div className="sms-payload-box">
         <div className="sms-payload-header">
-          <span className="sms-label">Automated Emergency SMS Payload</span>
+          <span className="sms-label">Emergency SMS draft — review before sending</span>
           <button
             type="button"
             className="copy-btn"
