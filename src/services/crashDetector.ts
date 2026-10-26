@@ -259,7 +259,7 @@ export class CrashDetectionEngine {
         sumSquaredDiff += diff * diff;
       }
     }
-    return Math.sqrt(sumSquaredDiff / validCount);
+    return sumSquaredDiff / validCount;
   }
 
   /**
@@ -293,6 +293,7 @@ export class CrashDetectionEngine {
       clearInterval(this.countdownTimerId);
       this.countdownTimerId = null;
     }
+    emergencyAudio.stopSiren();
     emergencyAudio.playCancelChime();
 
     const cancelledRecord: IncidentRecord = {
