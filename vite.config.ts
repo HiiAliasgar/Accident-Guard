@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   // GitHub Pages deployment base path
-  base: '/Accident-Guard/',
+  base: process.env.VITE_CAPACITOR_BUILD === 'true' ? './' : '/Accident-Guard/',
   server: {
     port: 5173,
     host: true
