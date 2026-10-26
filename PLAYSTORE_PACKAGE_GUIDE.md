@@ -19,8 +19,27 @@ The repository currently contains an experimental prototype. Its crash-detection
 - Package ID: `com.accidentguard.app`
 - Current target SDK: API 36. New Google Play submissions must meet the current target API requirement; verify it again in Play Console before submission.
 - The release AAB must be signed with a protected upload key or configured Play App Signing flow.
-- Never commit keystores, passwords, service-account JSON, API secrets, or signing credentials to Git.
-- The CI workflow currently builds a debug APK for engineering tests. A debug APK is not a production release bundle and is not suitable for production publication.
+- Never commit keystores, passwords, service-account JSON, API secrets, or signing credentials to Git or paste them into a chat.
+- The regular CI workflow builds a debug APK for engineering tests. A debug APK is not a production release bundle.
+- A manual `Android Release Bundle` workflow is provided in GitHub Actions. It requires signing secrets and can optionally upload a draft to the Play Console internal testing track.
+
+## Configure the release workflow
+
+1. Create an upload keystore on your own computer and keep a secure backup. Never send the keystore or passwords to anyone.
+2. Add these repository **Actions secrets** in GitHub `Settings → Secrets and variables → Actions`:
+   - `ANDROID_KEYSTORE_BASE64`: base64-encoded contents of your upload keystore.
+   - `ANDROID_KEYSTORE_PASSWORD`: keystore password.
+   - `ANDROID_KEY_ALIAS`: the alias used when creating the key.
+   - `ANDROID_KEY_PASSWORD`: key password.
+   - `PLAY_SERVICE_ACCOUNT_JSON`: required only if you want the workflow to upload to Play Console. Create a service account in Play Console API access and grant it appropriate app access.
+3. In PowerShell, encode the keystore without changing the file:
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes(".\\upload-keystore.jks"))
+   ```
+   Copy the output directly into the GitHub secret `ANDROID_KEYSTORE_BASE64`. Do not commit the keystore.
+4. Open **Actions → Android Release Bundle → Run workflow** with `upload_to_play = false` first. The signed AAB will be available as a workflow artifact if the build succeeds.
+5. Only after reviewing the bundle and completing required testing, run the workflow with `upload_to_play = true`. This uploads a **draft to internal testing**, not a production release. Play Console must already contain the app and the service account must have access.
+6. Review and test the draft in Play Console yourself. Do not move this prototype to production until the demonstration hospital data is replaced, app behavior is validated, and policy declarations are accurate.
 
 ## Publish through Google Play Console
 
