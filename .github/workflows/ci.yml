@@ -8,7 +8,7 @@ on:
 # A newer commit on the same branch supersedes an older build. This avoids
 # duplicate emulator jobs competing for runner capacity.
 concurrency:
-  group: accident-guard-ci-${{ github.workflow }}-${{ github.ref }}
+  group: accident-guard-ci-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
           node-version: 20
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm install
       - name: Run unit tests
         run: npm test
       - name: Type-check and build production bundle
@@ -90,9 +90,7 @@ jobs:
         with:
           name: accidentguard-android-test-reports
           path: |
-            android/app/build/reports/
-            android/app/build/outputs/androidTest-results/
-            android/app/build/test-results/
+            android/app/build/
             android-emulator-logcat.txt
           if-no-files-found: warn
           retention-days: 7
