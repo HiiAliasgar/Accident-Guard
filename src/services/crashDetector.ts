@@ -296,6 +296,7 @@ export class CrashDetectionEngine {
     emergencyAudio.stopSiren();
     emergencyAudio.playCancelChime();
 
+    this.countdownRemaining = this.thresholds.countdownDurationSec;
     const cancelledRecord: IncidentRecord = {
       id: `event-${Date.now()}`,
       timestamp: Date.now(),
