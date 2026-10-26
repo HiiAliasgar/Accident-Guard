@@ -11,7 +11,7 @@ AccidentGuard is an experimental student project exploring smartphone motion sen
 - Foreground location and map display when permission is granted.
 - Simulated alert countdown, siren/voice preview, and an SMS draft for manual review.
 - Unit tests for selected location and crash-detection service behavior.
-- GitHub Actions checks run unit tests and the production web build, and attempt an Android debug APK build plus local JVM tests.
+- GitHub Actions checks run unit tests and the production web build, and build an Android debug APK, run local JVM tests, and launch the activity in an Android emulator smoke test.
 
 ## Important limitations
 
