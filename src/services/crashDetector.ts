@@ -320,7 +320,25 @@ export class CrashDetectionEngine {
     }
     emergencyAudio.stopSiren();
 
-    const coords = await getCurrentCoordinates();
+    let coords;
+    try {
+      coords = await getCurrentCoordinates();
+    } catch {
+      // Do not present guessed/demo coordinates as a live accident location.
+      const locationUnavailableRecord: IncidentRecord = {
+        id: `incident-${Date.now()}`,
+        timestamp: Date.now(),
+        peakG: this.peakGRecorded,
+        peakRotation: this.peakGyroRecorded,
+        location: { lat: 0, lng: 0 },
+        classification: this.peakGyroRecorded > 300 ? 'ROLLOVER' : 'SEVERE_COLLISION',
+        dispatchedTo: [],
+        notes: 'Potential crash confirmed, but device location is unavailable. No automatic dispatch was sent by this prototype.'
+      };
+      this.incidentHistory.unshift(locationUnavailableRecord);
+      this.setState('ALERT_TRIGGERED', locationUnavailableRecord);
+      return;
+    }
     const sortedHospitals = getSortedHospitals(coords, DEFAULT_HOSPITALS);
     const nearestHospital = sortedHospitals[0];
 
