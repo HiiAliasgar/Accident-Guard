@@ -5,8 +5,6 @@ on:
   push:
     branches: [main, "improve/**"]
 
-# A newer commit on the same branch supersedes an older build. This avoids
-# duplicate emulator jobs competing for runner capacity.
 concurrency:
   group: accident-guard-ci-${{ github.ref }}
   cancel-in-progress: true
@@ -24,10 +22,12 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: Install dependencies
         run: npm install
+      - name: Verify lockfile is reproducible
+        run: npm install --package-lock-only --ignore-scripts
       - name: Run unit tests
         run: npm test
       - name: Type-check and build production bundle
@@ -56,7 +56,7 @@ jobs:
       - name: Install required Android platform and build tools
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Install web dependencies
-        run: npm ci
+        run: npm install
       - name: Run unit tests and build web assets
         run: |
           npm test
