@@ -718,6 +718,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </div>
         </div>
       )}
+      <div className="setup-guide-card mt-4">
+        <h4 className="guide-title">Privacy and prototype limitations</h4>
+        <p className="slider-subtext">
+          AccidentGuard is an experimental prototype. It does not automatically contact emergency services and must not be relied on in a real emergency.
+        </p>
+        <a className="guide-link" href="./privacy-policy.html" target="_blank" rel="noreferrer">
+          Read the AccidentGuard Privacy Policy
+        </a>
+      </div>
     </div>
   );
 };
