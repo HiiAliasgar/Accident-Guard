@@ -45,16 +45,16 @@
   ],
   "shortcuts": [
     {
-      "name": "Cockpit HUD",
+      "name": "Demo Cockpit",
       "short_name": "Cockpit",
-      "description": "Open live driving cockpit and navigation map",
+      "description": "Open experimental driving display and map preview",
       "url": "./?tab=navigation",
       "icons": [{ "src": "./icon-192.svg", "sizes": "192x192" }]
     },
     {
-      "name": "Trauma Centers",
-      "short_name": "Hospitals",
-      "description": "View nearest trauma centers and emergency coverage",
+      "name": "Demo Hospitals",
+      "short_name": "Demo Hospitals",
+      "description": "View unverified demonstration hospital entries",
       "url": "./?tab=hospitals",
       "icons": [{ "src": "./icon-192.svg", "sizes": "192x192" }]
     },
