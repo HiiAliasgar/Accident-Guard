@@ -36,8 +36,14 @@ const frame = (timestamp: number, magnitude: number, rotationMagnitude: number):
 });
 
 describe('CrashDetectionEngine', () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
+  beforeEach(() => {
+    vi.useFakeTimers();
+    (globalThis as typeof globalThis & { window: Window }).window = globalThis as unknown as Window;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    delete (globalThis as typeof globalThis & { window?: Window }).window;
+  });
 
   it('uses documented default thresholds', () => {
     const engine = new CrashDetectionEngine();
