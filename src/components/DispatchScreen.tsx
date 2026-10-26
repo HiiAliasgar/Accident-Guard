@@ -100,14 +100,13 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
             icon: '/vite.svg',
             requireInteraction: true
           });
-          setNotificationSent(true);
         } catch (err) {
           console.warn('Web notification trigger error:', err);
         }
       } else if (Notification.permission !== 'denied') {
         Notification.requestPermission().then((permission) => {
           if (permission === 'granted') {
-            new Notification('🚨 CRITICAL CRASH ALERT — HOSPITAL DISPATCHED', {
+            new Notification('AccidentGuard demo — crash alert preview', {
               body: `Simulated crash alert: ${peakG.toFixed(1)}g. No emergency service was contacted.`,
               icon: '/vite.svg'
             });
