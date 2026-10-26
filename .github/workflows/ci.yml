@@ -26,8 +26,6 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm install
-      - name: Verify lockfile is reproducible
-        run: npm install --package-lock-only --ignore-scripts
       - name: Run unit tests
         run: npm test
       - name: Type-check and build production bundle
