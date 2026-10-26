@@ -6,10 +6,7 @@ import { getCurrentCoordinates, DEFAULT_HOSPITALS, getSortedHospitals } from './
 export const DEFAULT_THRESHOLDS: DetectionThresholds = {
   /**
    * IMPACT G THRESHOLD (3.5g):
-   * Rationale: Standard automotive research (NHTSA, FMVSS 208) demonstrates that real passenger vehicle
-   * collisions (at speeds >= 25 km/h) generate impulse shocks on vehicle chassis and mounted devices
-   * exceeding 3.5g to 15g+. Everyday driving (harsh braking = ~0.7g - 1.0g; extreme potholes = ~1.5g - 2.2g)
-   * reliably falls below 3.0g. Setting the trigger threshold to 3.5g prevents pothole false alarms while
+   * Rationale: This is an experimental starting value only. Smartphone placement, device hardware, crash direction, vehicle dynamics, and road conditions vary substantially. This threshold has not been validated against NHTSA/FMVSS data or real-world driving and cannot reliably distinguish crashes from potholes or phone drops. Setting the trigger threshold to 3.5g is a prototype heuristic, not a safety guarantee. It may
    * capturing low-to-moderate and severe crashes.
    */
   impactThresholdG: 3.5,
