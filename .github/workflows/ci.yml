@@ -11,6 +11,7 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,6 +29,7 @@ jobs:
 
   android-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,16 +64,31 @@ jobs:
           ./gradlew assembleDebug testDebugUnitTest --no-daemon
       - name: Run Android emulator smoke test
         uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 18
         with:
           api-level: 36
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: cd android && ./gradlew connectedDebugAndroidTest --no-daemon
+          script: cd android && ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
+
+      - name: Upload Android test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accidentguard-android-test-reports
+          path: |
+            android/app/build/reports/
+            android/app/build/outputs/androidTest-results/
+            android/app/build/test-results/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload debug APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: accidentguard-android-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 7
