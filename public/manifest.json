@@ -1,10 +1,10 @@
 {
-  "name": "AccidentGuard — Collision Detection & Trauma Dispatch",
+  "name": "AccidentGuard — Crash Alert Prototype",
   "short_name": "AccidentGuard",
-  "description": "Production automotive collision detection system with 50Hz sensor pipeline, 15-second abort window, false alarm filter, and automated trauma dispatch.",
-  "start_url": "/",
-  "id": "/",
-  "scope": "/",
+  "description": "Experimental student prototype for motion-sensor testing and simulated crash-alert screens. Not a certified safety app.",
+  "start_url": "./",
+  "id": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#070a11",
@@ -19,25 +19,25 @@
   ],
   "icons": [
     {
-      "src": "/icon-192.svg",
+      "src": "./icon-192.svg",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/icon-192.svg",
+      "src": "./icon-192.svg",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "maskable"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "./icon-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.svg",
+      "src": "./icon-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable"
@@ -48,22 +48,22 @@
       "name": "Cockpit HUD",
       "short_name": "Cockpit",
       "description": "Open live driving cockpit and navigation map",
-      "url": "/?tab=navigation",
-      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+      "url": "./?tab=navigation",
+      "icons": [{ "src": "./icon-192.svg", "sizes": "192x192" }]
     },
     {
       "name": "Trauma Centers",
       "short_name": "Hospitals",
       "description": "View nearest trauma centers and emergency coverage",
-      "url": "/?tab=hospitals",
-      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+      "url": "./?tab=hospitals",
+      "icons": [{ "src": "./icon-192.svg", "sizes": "192x192" }]
     },
     {
       "name": "Impact Testbench",
       "short_name": "Simulate",
       "description": "Launch crash scenario test bench",
-      "url": "/?tab=sensors",
-      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+      "url": "./?tab=sensors",
+      "icons": [{ "src": "./icon-192.svg", "sizes": "192x192" }]
     }
   ],
   "prefer_related_applications": false
