@@ -183,7 +183,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <div className="info-banner mb-4">
             <Info size={16} className="text-cyan-400 mr-2 flex-shrink-0" />
             <p className="text-xs text-slate-300">
-              Calibrated to NHTSA and SAE automotive safety standards. Tuning allows adjusting for sport driving or motorcycle dynamics.
+              Experimental parameters only. These thresholds have not been validated against NHTSA, SAE, or real-world crash data; changing them does not make this app safety-certified.
             </p>
           </div>
 
