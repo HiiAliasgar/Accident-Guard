@@ -84,9 +84,9 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
     timestamp
   });
 
-  // Direct SMS link for mobile browsers
-  const smsHref = `sms:${nearestHospital.phone}?body=${encodeURIComponent(smsPayload.messageText)}`;
-  const telHref = `tel:${nearestHospital.phone.replace(/[^0-9+]/g, '')}`;
+  // Demo draft only. No verified hospital recipient is configured.
+  const smsHref = `sms:?body=${encodeURIComponent(smsPayload.messageText)}`;
+  const hasVerifiedHospitalPhone = Boolean(nearestHospital.phone && nearestHospital.phone.trim());
   const googleMapsHref = `https://www.google.com/maps?q=${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}`;
 
   // Send Browser Web Notification & Speak Emergency Status
@@ -188,7 +188,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
           </div>
         </div>
 
-        {/* Action Buttons: Direct SMS, Direct Call, Google Maps */}
+        {/* Demo actions only. No verified hospital phone number is configured. */}
         <div className="hospital-actions-bar">
           <a
             href={smsHref}
@@ -196,17 +196,24 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
             id="btn-direct-sms"
           >
             <Send size={18} />
-            <span>Open SMS draft (not sent automatically)</span>
+            <span>Open demo SMS draft — verify before sending</span>
           </a>
 
-          <a
-            href={telHref}
-            className="action-btn direct-call-btn"
-            id="btn-direct-call"
-          >
-            <PhoneCall size={18} />
-            <span>Call Trauma Desk ({nearestHospital.phone})</span>
-          </a>
+          {hasVerifiedHospitalPhone ? (
+            <a
+              href={`tel:${nearestHospital.phone.replace(/[^0-9+]/g, '')}`}
+              className="action-btn direct-call-btn"
+              id="btn-direct-call"
+            >
+              <PhoneCall size={18} />
+              <span>Call verified hospital ({nearestHospital.phone})</span>
+            </a>
+          ) : (
+            <span className="action-btn direct-call-btn" aria-disabled="true">
+              <PhoneCall size={18} />
+              <span>No verified hospital number configured</span>
+            </span>
+          )}
 
           <a
             href={googleMapsHref}
@@ -216,7 +223,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
             id="btn-google-maps"
           >
             <ExternalLink size={18} />
-            <span>View on Google Maps</span>
+            <span>View demonstration coordinates on Google Maps</span>
           </a>
         </div>
       </div>
@@ -226,10 +233,10 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
         <div className="dispatch-map-header">
           <div className="flex items-center space-x-2">
             <Radio size={16} className="text-cyan-400 animate-pulse" />
-            <span className="font-semibold text-white">Live Emergency Location & Hospital Route</span>
+            <span className="font-semibold text-white">Demo Location Preview — Not Emergency Routing</span>
           </div>
           <span className="text-xs text-slate-400">
-            Coordinates: {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
+            Demo/current coordinates: {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
           </span>
         </div>
         <MapView
@@ -245,7 +252,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
       <div className="dispatch-transmission-feed">
         <h3 className="section-title">
           <Shield size={16} className="text-emerald-400" />
-          <span>Real-Time Hospital Telemetry Gateway</span>
+          <span>Simulated Alert Workflow — No Dispatch Backend</span>
         </h3>
 
         <div className="transmission-steps-list">
@@ -295,14 +302,14 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
         </div>
         <pre className="sms-text-content">{smsPayload.messageText}</pre>
         <div className="sms-recipients-row">
-          <span className="recipients-label">Recipients:</span>
+          <span className="recipients-label">Draft recipients (none pre-filled):</span>
           {smsPayload.recipientNumbers.map((num, idx) => (
             <span key={idx} className="recipient-pill">{num}</span>
           ))}
         </div>
       </div>
 
-      {/* Emergency Contacts Alerted */}
+      {/* Emergency Contacts — Not Alerted Automatically */}
       <div className="emergency-contacts-summary">
         <h3 className="section-title">
           <PhoneCall size={16} className="text-cyan-400" />
