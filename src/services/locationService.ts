@@ -102,7 +102,7 @@ export function getSortedHospitals(
  * Retrieves the device's real GPS position or falls back to standard demo coordinates
  */
 export async function getCurrentCoordinates(): Promise<Coordinates> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -112,22 +112,15 @@ export async function getCurrentCoordinates(): Promise<Coordinates> {
             accuracy: position.coords.accuracy
           });
         },
-        () => {
-          // Fallback to default urban demo location (San Francisco Civic Center)
-          resolve({
-            latitude: 37.7749,
-            longitude: -122.4194,
-            accuracy: 15
-          });
+        (error) => {
+          // Never silently substitute a distant demo coordinate for a failed real GPS fix.
+          // Mark the failure by rejecting so callers can present an explicit unavailable state.
+          reject(new Error(`Unable to obtain device location: ${error.message || 'permission denied or timeout'}`));
         },
         { timeout: 8000, enableHighAccuracy: true }
       );
     } else {
-      resolve({
-        latitude: 37.7749,
-        longitude: -122.4194,
-        accuracy: 25
-      });
+      reject(new Error('Geolocation is not supported by this environment.'));
     }
   });
 }
