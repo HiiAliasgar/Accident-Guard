@@ -1,13 +1,13 @@
-// AccidentGuard Production Offline Service Worker
-// Guarantees continuous accident monitoring, sensor capture, and siren response in offline environments
+// AccidentGuard prototype service worker for caching static web assets.
+// Caching does not guarantee background crash detection or emergency response.
 
 const CACHE_NAME = 'accidentguard-v1';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192.svg',
-  '/icon-512.svg'
+  self.registration.scope,
+  new URL('index.html', self.registration.scope).toString(),
+  new URL('manifest.json', self.registration.scope).toString(),
+  new URL('icon-192.svg', self.registration.scope).toString(),
+  new URL('icon-512.svg', self.registration.scope).toString()
 ];
 
 // Install Event: Cache Core Offline Shell
