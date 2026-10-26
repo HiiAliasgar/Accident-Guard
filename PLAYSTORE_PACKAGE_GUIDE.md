@@ -1,137 +1,54 @@
-# AccidentGuard — Google Play Store Production Publishing Guide
+# AccidentGuard — Google Play Release Readiness
 
-This guide provides everything needed to compile, sign, and publish **AccidentGuard** (`com.accidentguard.app`) to the **Google Play Console**.
+**Current status: NOT READY for public release as an emergency or crash-detection safety app.**
 
----
+The repository currently contains an experimental prototype. Its crash-detection thresholds have not been validated, the hospital dataset contains demonstration entries, and there is no emergency dispatch backend. Do not claim that the app automatically contacts ambulances, detects every crash, prevents false alarms, or works reliably in the background.
 
-## 1. Google Play Store Listing Copy
+## Before any public release
 
-### App Title (Max 30 Characters)
-```text
-AccidentGuard: Crash Alert
-```
+1. Replace all demonstration hospital names, coordinates, phone numbers, routes, and ETA values with verified data for the intended launch region—or remove those features.
+2. Complete physical-device testing on supported Android phones, including denied permissions, GPS unavailable, sensor availability, notification behavior, lifecycle/background transitions, and false-alarm cancellation. Never test on public roads or call real emergency services during testing.
+3. Review every permission in the merged Android manifest. Request only permissions required by working, user-visible features. Background location and direct SMS/phone permissions require special justification and may trigger Google Play review.
+4. Verify the privacy policy against actual data flows and host it at a stable public HTTPS URL. The current policy in this repository is a project draft and must be reviewed before publication.
+5. Complete Google Play's Data safety, app access, content rating, target audience, and any sensitive-permission declarations accurately.
+6. Prepare truthful store listing text, screenshots from the real app, a 512×512 PNG app icon, and a 1024×500 feature graphic. Do not advertise unimplemented dispatch or validated safety functionality.
+7. Test an Android App Bundle (AAB) on a closed testing track before considering production.
 
-### Short Description (Max 80 Characters)
-```text
-Automotive collision detection, 50Hz sensor filter & emergency trauma dispatch.
-```
+## Technical release requirements
 
-### Full Description (Max 4,000 Characters)
-```text
-AccidentGuard is a high-performance vehicular accident detection and emergency response system engineered for drivers, motorcyclists, and fleet operators.
+- Package ID: `com.accidentguard.app`
+- Current target SDK: API 36. New Google Play submissions must meet the current target API requirement; verify it again in Play Console before submission.
+- The release AAB must be signed with a protected upload key or configured Play App Signing flow.
+- Never commit keystores, passwords, service-account JSON, API secrets, or signing credentials to Git or paste them into a chat.
+- The regular CI workflow builds a debug APK for engineering tests. A debug APK is not a production release bundle.
+- A manual `Android Release Bundle` workflow is provided in GitHub Actions. It requires signing secrets and can optionally upload a draft to the Play Console internal testing track.
 
-Utilizing your smartphone's internal 3-axis accelerometer and 3-axis gyroscope sensors sampled at ~50 Hz, AccidentGuard continuously monitors vehicular dynamics to identify catastrophic impacts in real time.
+## Configure the release workflow
 
-==============================================
-KEY FEATURES & ENGINEERING SPECIFICATIONS
-==============================================
+1. Create an upload keystore on your own computer and keep a secure backup. Never send the keystore or passwords to anyone.
+2. Add these repository **Actions secrets** in GitHub `Settings → Secrets and variables → Actions`:
+   - `ANDROID_KEYSTORE_BASE64`: base64-encoded contents of your upload keystore.
+   - `ANDROID_KEYSTORE_PASSWORD`: keystore password.
+   - `ANDROID_KEY_ALIAS`: the alias used when creating the key.
+   - `ANDROID_KEY_PASSWORD`: key password.
+   - `PLAY_SERVICE_ACCOUNT_JSON`: required only if you want the workflow to upload to Play Console. Create a service account in Play Console API access and grant it appropriate app access.
+3. In PowerShell, encode the keystore without changing the file:
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes(".\\upload-keystore.jks"))
+   ```
+   Copy the output directly into the GitHub secret `ANDROID_KEYSTORE_BASE64`. Do not commit the keystore.
+4. Open **Actions → Android Release Bundle → Run workflow** with `upload_to_play = false` first. The signed AAB will be available as a workflow artifact if the build succeeds.
+5. Only after reviewing the bundle and completing required testing, run the workflow with `upload_to_play = true`. This uploads a **draft to internal testing**, not a production release. Play Console must already contain the app and the service account must have access.
+6. Review and test the draft in Play Console yourself. Do not move this prototype to production until the demonstration hospital data is replaced, app behavior is validated, and policy declarations are accurate.
 
-• 50Hz HIGH-FREQUENCY SENSOR PIPELINE
-Samples linear acceleration and angular velocity at 20ms intervals (Nyquist compliant), capturing the complete deceleration impulse shockwave curve (80ms - 200ms) without causing mobile CPU thermal throttling.
+## Publish through Google Play Console
 
-• BIOMECHANICAL COLLISION THRESHOLDING
-Calibrated to NHTSA and FMVSS automotive crash test data. Uses dynamic jerk analysis and resultant magnitude filtering (threshold: ≥3.5g) to trigger confirmation only on genuine high-energy collisions.
+1. Create or select the app in your own [Google Play Console](https://play.google.com/console) account.
+2. Complete the app content and store listing accurately.
+3. Configure a secure release signing setup and generate a signed AAB.
+4. Upload it to an internal or closed testing track, test on real devices, and resolve Play Console warnings.
+5. Complete required testing and review steps shown in your Play Console account, then submit for review. Google controls the review and publication decision.
 
-• ADVANCED FALSE ALARM REJECTION (NO UNWANTED CALLS)
-Dropping your phone or hitting a harsh road bump will NOT trigger false 911 calls. AccidentGuard monitors a 3.0-second post-impact observation window for stillness variance (<0.25g) and multi-axis tumbling (≥180°/s). If normal motion continues (e.g. you pick up your phone), the alert is instantly dismissed.
+## Current limitations
 
-• 15-SECOND EMERGENCY ABORT COUNTDOWN
-In the event of a verified crash, a high-decibel acoustic siren and pulsating visual countdown appear. If you are unhurt, tap "I'M OK" with one touch to abort dispatch.
-
-• AUTOMATED FIRST RESPONDER & SMS DISPATCH
-If you are incapacitated and the countdown expires, AccidentGuard immediately compiles your exact GPS telemetry, peak impact G-force, and nearest Level-1/Level-2 trauma center coordinates, automatically dispatching SMS alerts and initiating emergency desk calls.
-
-• DUAL-ENGINE AUTOMOTIVE COCKPIT MAP
-Switch effortlessly between Google Maps Platform (with custom high-contrast Night Cockpit styling and turn-by-turn routing) and free OpenStreetMap/Leaflet raster navigation.
-
-• ZERO-CELLULAR OFFLINE PROTECTION
-AccidentGuard features offline service worker caching. The core collision detection state machine, motion sensors, and emergency audio sirens remain 100% operational even in remote mountain corridors with no cellular signal.
-
-==============================================
-DATA PRIVACY & ON-DEVICE SAFETY
-==============================================
-• No Tracking: Your driving sensor telemetry is processed entirely in volatile memory on your device.
-• Emergency Use Only: GPS coordinates are accessed solely for emergency proximity routing and dispatch.
-• Transparent Policy: Read our complete Privacy Policy at https://accidentguard.app/privacy
-
-Drive with confidence. Protect yourself and your loved ones with AccidentGuard.
-```
-
----
-
-## 2. Google Play Data Safety Form Answers
-
-When completing Google Play Console's mandatory **Data Safety** questionnaire:
-
-| Questionnaire Field | Answer | Notes |
-| :--- | :--- | :--- |
-| **Does your app collect or share user data?** | **Yes** | Required due to Location & Emergency Contacts |
-| **Is all user data encrypted in transit?** | **Yes** | HTTPS & secure system intents |
-| **Do you provide a way for users to request data deletion?** | **Yes** | Clear Logs button in Settings |
-| **Location: Precise Location (`ACCESS_FINE_LOCATION`)** | **Collected (Not Shared)** | Purpose: *App Functionality* (emergency dispatch) |
-| **Personal Info: Emergency Contacts** | **Collected (Not Shared)** | Purpose: *App Functionality* (stored locally on-device) |
-| **Sensors / Health: Accelerometer & Gyroscope** | **Ephemeral Processing** | Data is analyzed in real-time in RAM and not stored permanently |
-| **Advertising / Marketing?** | **No** | AccidentGuard contains zero advertisements or ad SDKs |
-
----
-
-## 3. Generating a Release Signing Keystore
-
-To sign your Android App Bundle (`.aab`) for Google Play:
-
-Run the following command in PowerShell:
-
-```powershell
-keytool -genkey -v -keystore upload-keystore.jks -alias accidentguard -keyalg RSA -keysize 2048 -validity 10000
-```
-*(Store `upload-keystore.jks` and your keystore password securely; Google Play requires this key for all future app updates).*
-
----
-
-## 4. Building the Android App Bundle (`.aab`)
-
-### Option A: Via Android Studio (GUI)
-1. Open Android Studio.
-2. Click **Open an Existing Project** and select `d:\code\android`.
-3. Allow Gradle to finish syncing.
-4. In the top menu, navigate to **Build > Generate Signed Bundle / APK...**
-5. Select **Android App Bundle** and click **Next**.
-6. Select your `upload-keystore.jks` file, enter your password and alias.
-7. Select **Release** build variant and click **Finish**.
-8. Your output `.aab` file will be generated in `android/app/release/app-release.aab`.
-
-### Option B: Via Command Line (Gradle)
-```powershell
-cd android
-./gradlew bundleRelease
-```
-The resulting `.aab` will be located at:
-`android/app/build/outputs/bundle/release/app-release.aab`
-
-### Option C: Automated Cloud Build (GitHub Actions)
-Push the codebase to GitHub. Our automated workflow in `.github/workflows/build-android.yml` will compile the code, sync Capacitor, and generate the Android bundle automatically in GitHub Actions artifacts!
-
----
-
-## 5. Google Play Console Submission Steps
-
-1. Log in to [Google Play Console](https://play.google.com/console).
-2. Click **Create App**:
-   - App Name: `AccidentGuard: Crash Alert`
-   - Default Language: `English (United States)`
-   - App or Game: `App`
-   - Free or Paid: `Free`
-3. Complete **App Content & Policies**:
-   - **Privacy Policy**: Paste URL pointing to your hosted `PRIVACY_POLICY.md` (e.g. GitHub Pages or website).
-   - **Data Safety**: Fill out according to the table in Section 2 above.
-   - **Target Audience**: 18+ (Drivers / Automotive safety).
-4. Complete **Main Store Listing**:
-   - Paste the App Title, Short Description, and Full Description from Section 1.
-   - Upload App Icon (512x512 PNG, provided in `public/icon-512.svg`).
-   - Upload Feature Graphic (1024x500 PNG).
-   - Upload phone screenshots of Cockpit HUD, Sensor Waveform, and Trauma Coverage.
-5. Under **Release > Production** (or **Closed Testing**):
-   - Click **Create New Release**.
-   - Upload your `app-release.aab`.
-   - Add release notes (e.g. `v1.0.0 — Production release of AccidentGuard vehicular crash detection & emergency trauma routing`).
-   - Click **Review and Roll Out**!
+AccidentGuard is a student prototype, not an emergency service. Do not rely on it for personal safety, and do not use it as a substitute for local emergency services.

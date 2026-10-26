@@ -7,43 +7,44 @@ export interface Coordinates {
   accuracy?: number;
 }
 
-// Sample hospitals database (representing nearby emergency trauma centers)
+// DEMO-ONLY hospital fixtures. These are not verified facilities or contact details.
+// Replace with a verified dataset for the actual launch region before any public release.
 export const DEFAULT_HOSPITALS: Hospital[] = [
   {
-    id: 'hosp-1',
-    name: 'Metropolitan Level-1 Trauma Center',
-    address: '1001 Potrero Ave, San Francisco, CA 94110',
+    id: 'demo-hosp-1',
+    name: 'DEMO ONLY — Hospital A (not verified)',
+    address: 'Demonstration location only — not a real facility',
     latitude: 37.7558,
     longitude: -122.4045,
-    phone: '+1 (415) 206-8000',
-    traumaLevel: 'Level 1 Trauma & Comprehensive Stroke'
+    phone: '',
+    traumaLevel: 'DEMO DATA — NOT AN EMERGENCY SERVICE'
   },
   {
-    id: 'hosp-2',
-    name: 'St. Jude Regional Emergency Hospital',
-    address: '350 Parnassus Ave, San Francisco, CA 94143',
+    id: 'demo-hosp-2',
+    name: 'DEMO ONLY — Hospital B (not verified)',
+    address: 'Demonstration location only — not a real facility',
     latitude: 37.7631,
     longitude: -122.4578,
-    phone: '+1 (415) 353-1000',
-    traumaLevel: 'Level 2 Trauma & Cardiac Care'
+    phone: '',
+    traumaLevel: 'DEMO DATA — NOT AN EMERGENCY SERVICE'
   },
   {
-    id: 'hosp-3',
-    name: 'Civic Urgent Care & Acute Trauma Annex',
-    address: '900 Hyde St, San Francisco, CA 94109',
+    id: 'demo-hosp-3',
+    name: 'DEMO ONLY — Hospital C (not verified)',
+    address: 'Demonstration location only — not a real facility',
     latitude: 37.7905,
     longitude: -122.4172,
-    phone: '+1 (415) 775-4321',
-    traumaLevel: 'Level 3 Acute Emergency'
+    phone: '',
+    traumaLevel: 'DEMO DATA — NOT AN EMERGENCY SERVICE'
   },
   {
-    id: 'hosp-4',
-    name: 'Bay Area Emergency Response Hub',
-    address: '1600 Divisadero St, San Francisco, CA 94115',
+    id: 'demo-hosp-4',
+    name: 'DEMO ONLY — Hospital D (not verified)',
+    address: 'Demonstration location only — not a real facility',
     latitude: 37.7854,
     longitude: -122.4402,
-    phone: '+1 (415) 567-6600',
-    traumaLevel: 'Emergency Medical Dispatch'
+    phone: '',
+    traumaLevel: 'DEMO DATA — NOT AN EMERGENCY SERVICE'
   }
 ];
 
@@ -102,7 +103,7 @@ export function getSortedHospitals(
  * Retrieves the device's real GPS position or falls back to standard demo coordinates
  */
 export async function getCurrentCoordinates(): Promise<Coordinates> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -112,22 +113,15 @@ export async function getCurrentCoordinates(): Promise<Coordinates> {
             accuracy: position.coords.accuracy
           });
         },
-        () => {
-          // Fallback to default urban demo location (San Francisco Civic Center)
-          resolve({
-            latitude: 37.7749,
-            longitude: -122.4194,
-            accuracy: 15
-          });
+        (error) => {
+          // Never silently substitute a distant demo coordinate for a failed real GPS fix.
+          // Mark the failure by rejecting so callers can present an explicit unavailable state.
+          reject(new Error(`Unable to obtain device location: ${error.message || 'permission denied or timeout'}`));
         },
         { timeout: 8000, enableHighAccuracy: true }
       );
     } else {
-      resolve({
-        latitude: 37.7749,
-        longitude: -122.4194,
-        accuracy: 25
-      });
+      reject(new Error('Geolocation is not supported by this environment.'));
     }
   });
 }
@@ -150,20 +144,20 @@ export function generateEmergencySmsPayload(params: {
   const timeStr = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const mapsUrl = `https://maps.google.com/?q=${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}`;
 
-  const messageText = 
-`🚨 [ACCIDENTGUARD EMERGENCY DISPATCH] 🚨
-CRITICAL VEHICULAR IMPACT DETECTED!
-Driver: ${userName}
+  const messageText =
+`[ACCIDENTGUARD DEMO — NOT A VERIFIED EMERGENCY ALERT]
+This is a demonstration draft from an experimental student prototype.
+Driver label: ${userName}
 Time: ${timeStr}
-Peak Impact: ${peakG.toFixed(1)}g (Severe Collision)
-GPS Location: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (±${coords.accuracy ?? 10}m)
-Live Map: ${mapsUrl}
-Nearest Trauma Center: ${nearestHospital.name} (ETA ~${nearestHospital.etaMinutes ?? 5} min)
-Hospital Hotline: ${nearestHospital.phone}
-Please dispatch emergency medical services (EMS) immediately!`;
+Experimental sensor reading: ${peakG.toFixed(1)}g (not validated)
+Displayed coordinates: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (±${coords.accuracy ?? 10}m)
+Map link: ${mapsUrl}
+Displayed facility: ${nearestHospital.name}
+WARNING: No emergency service has been contacted. Verify all information and contact local emergency services directly in a real emergency.`;
 
   return {
-    recipientNumbers: [nearestHospital.phone, '+1 (555) 911-0199', '+1 (555) 234-5678'],
+    // No default recipients: never populate fabricated phone numbers.
+    recipientNumbers: [],
     messageText,
     mapsUrl
   };

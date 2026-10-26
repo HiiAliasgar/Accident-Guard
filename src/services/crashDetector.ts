@@ -6,20 +6,18 @@ import { getCurrentCoordinates, DEFAULT_HOSPITALS, getSortedHospitals } from './
 export const DEFAULT_THRESHOLDS: DetectionThresholds = {
   /**
    * IMPACT G THRESHOLD (3.5g):
-   * Rationale: Standard automotive research (NHTSA, FMVSS 208) demonstrates that real passenger vehicle
-   * collisions (at speeds >= 25 km/h) generate impulse shocks on vehicle chassis and mounted devices
-   * exceeding 3.5g to 15g+. Everyday driving (harsh braking = ~0.7g - 1.0g; extreme potholes = ~1.5g - 2.2g)
-   * reliably falls below 3.0g. Setting the trigger threshold to 3.5g prevents pothole false alarms while
-   * capturing low-to-moderate and severe crashes.
+   * Experimental starting value only. Smartphone placement, hardware, crash direction, vehicle dynamics,
+   * and road conditions vary substantially. This threshold has not been validated against NHTSA/FMVSS
+   * data or real-world driving and cannot reliably distinguish crashes from potholes or phone drops.
+   * It is a prototype heuristic, not a safety guarantee.
    */
   impactThresholdG: 3.5,
 
   /**
    * STILLNESS CONFIRMATION WINDOW (3.0 seconds):
-   * Rationale: In a genuine vehicular collision, the vehicle comes to an abrupt halt post-impact,
-   * resulting in near-zero motion variance. In contrast, dropping a phone on the ground or into a bag
-   * is typically followed by immediate picking up, walking, or continued transit (high variance).
-   * A 3-second post-impact observation window reliably discerns true post-crash immobilisation.
+   * Experimental heuristic only. Post-impact motion varies by crash type, vehicle, phone mounting,
+   * and user behavior. This window has not been validated and cannot reliably distinguish a crash
+   * from a dropped phone, pothole, or other event.
    */
   stillnessDurationSec: 3.0,
 
@@ -259,7 +257,7 @@ export class CrashDetectionEngine {
         sumSquaredDiff += diff * diff;
       }
     }
-    return Math.sqrt(sumSquaredDiff / validCount);
+    return sumSquaredDiff / validCount;
   }
 
   /**
@@ -293,8 +291,10 @@ export class CrashDetectionEngine {
       clearInterval(this.countdownTimerId);
       this.countdownTimerId = null;
     }
+    emergencyAudio.stopSiren();
     emergencyAudio.playCancelChime();
 
+    this.countdownRemaining = this.thresholds.countdownDurationSec;
     const cancelledRecord: IncidentRecord = {
       id: `event-${Date.now()}`,
       timestamp: Date.now(),
@@ -319,7 +319,25 @@ export class CrashDetectionEngine {
     }
     emergencyAudio.stopSiren();
 
-    const coords = await getCurrentCoordinates();
+    let coords;
+    try {
+      coords = await getCurrentCoordinates();
+    } catch {
+      // Do not present guessed/demo coordinates as a live accident location.
+      const locationUnavailableRecord: IncidentRecord = {
+        id: `incident-${Date.now()}`,
+        timestamp: Date.now(),
+        peakG: this.peakGRecorded,
+        peakRotation: this.peakGyroRecorded,
+        location: { lat: 0, lng: 0 },
+        classification: this.peakGyroRecorded > 300 ? 'ROLLOVER' : 'SEVERE_COLLISION',
+        dispatchedTo: [],
+        notes: 'Potential crash confirmed, but device location is unavailable. No automatic dispatch was sent by this prototype.'
+      };
+      this.incidentHistory.unshift(locationUnavailableRecord);
+      this.setState('ALERT_TRIGGERED', locationUnavailableRecord);
+      return;
+    }
     const sortedHospitals = getSortedHospitals(coords, DEFAULT_HOSPITALS);
     const nearestHospital = sortedHospitals[0];
 

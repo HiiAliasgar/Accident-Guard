@@ -33,3 +33,9 @@ yarn-error.log*
 
 # Screenshots (generated, not source)
 screenshot_*.png
+
+# Signing credentials and generated Android release packages
+*.jks
+*.keystore
+*.aab
+*.apk

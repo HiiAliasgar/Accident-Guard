@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, "improve/**"]
+
+# A newer commit on the same branch supersedes an older build. This avoids
+# duplicate emulator jobs competing for runner capacity.
+concurrency:
+  group: accident-guard-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Run unit tests
+        run: npm test
+      - name: Type-check and build production bundle
+        run: npm run build
+
+  android-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - name: Install required Android platform and build tools
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Install web dependencies
+        run: npm ci
+      - name: Run unit tests and build web assets
+        run: |
+          npm test
+          npm run build:android
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+      - name: Build Android debug APK and run local JVM tests
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug testDebugUnitTest --no-daemon --stacktrace
+      - name: Run Android emulator smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 18
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: |
+            cd android
+            set +e
+            ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
+            test_status=$?
+            adb logcat -d -t 5000 > ../android-emulator-logcat.txt
+            exit "$test_status"
+
+      - name: Upload Android test reports and emulator logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accidentguard-android-test-reports
+          path: |
+            android/app/build/
+            android-emulator-logcat.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accidentguard-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7

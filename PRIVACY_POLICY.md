@@ -1,69 +1,37 @@
-# Privacy Policy — AccidentGuard Mobile Application
+# Privacy Policy — AccidentGuard
 
-**Last Updated**: September 11, 2026  
-**Effective Date**: September 11, 2026  
-**Application**: AccidentGuard (`com.accidentguard.app`)
+**Last updated:** October 26, 2026  
+**Application ID:** `com.accidentguard.app`
 
-AccidentGuard ("we", "our", or "us") is dedicated to protecting your privacy and delivering a reliable, life-saving vehicular collision detection service. This Privacy Policy explains how our mobile application collects, processes, and protects your information when you use AccidentGuard on Android or via our Progressive Web App (PWA).
+AccidentGuard is an experimental student prototype for exploring phone motion sensors, location display, and simulated crash-alert screens. It is not a certified safety product and must not be relied on in an emergency.
 
----
+## Information processed
 
-## 1. Information We Collect and Process
+- **Motion sensors:** When the relevant feature is active, the app may read accelerometer and gyroscope values to demonstrate experimental crash-detection logic. The algorithm has not been validated for real-world crash detection.
+- **Location:** If you grant location permission and use a location feature, the app may read the device's current location to display coordinates or a map. Location may be sent to map providers when you use their map services.
+- **Information you enter:** Any contact or preference information you enter may be stored by the app in local browser/app storage, depending on the feature used.
 
-### A. Device Inertial Sensor Data (IMU)
-- **Data Collected**: 3-axis accelerometer readings ($x, y, z$ in $\text{m/s}^2$ or $g$-force) and 3-axis gyroscope angular velocity ($\alpha, \beta, \gamma$ in $\text{deg/s}$).
-- **Sampling Frequency**: High-frequency sampling at approximately 50 Hz (20ms intervals) via Android's `HIGH_SAMPLING_RATE_SENSORS`.
-- **Purpose**: Real-time collision impulse detection ($\ge 3.5g$), vehicular tumble analysis, and 3.0-second post-impact stillness verification to suppress false alarms (such as dropped phones).
-- **Storage & Retention**: Sensor data is processed **locally on your device in volatile memory (RAM)** using a rolling circular buffer. Sensor data is never transmitted to external analytics servers or sold to third parties.
+## Emergency alerts and calls
 
-### B. Geolocation Data (GPS)
-- **Data Collected**: Precise GPS latitude, longitude, heading, and speed telemetry (`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`).
-- **Purpose**: 
-  1. Identifying nearest Level-1 and Level-2 trauma centers using Haversine spherical distance calculation.
-  2. Formatting emergency dispatch SMS payloads and navigation links (`maps.google.com/?q=lat,lng`) for emergency services and family contacts.
-  3. Real-time automotive cockpit HUD display.
-- **Permission**: Requested at runtime. Location is never tracked or shared for advertising purposes.
+The current prototype does **not** automatically contact emergency services, dispatch an ambulance, or transmit crash telemetry to a hospital. The alert screen can display demonstration hospital data and prepare an SMS draft or open the phone's calling interface if you choose an action. Demonstration hospital names, coordinates, distances, and contact details must not be treated as verified information. Review any recipient and message before sending it.
 
-### C. Emergency Contacts & Medical Preferences
-- **Data Collected**: Names, phone numbers, and relationships of user-specified emergency contacts stored via `localStorage` or native app storage.
-- **Purpose**: Automated dispatch of emergency SMS alerts and one-tap calling when an impact is confirmed.
+## Sharing and third-party services
 
----
+The app does not operate its own emergency dispatch backend. If you open a map, SMS, or telephone link, the relevant third-party app or provider handles that interaction under its own terms and privacy policy. Do not enter sensitive information into this prototype.
 
-## 2. Permissions Declared & Engineering Rationale
+## Permissions
 
-| Permission | Android API Level | Rationale |
-| :--- | :--- | :--- |
-| `HIGH_SAMPLING_RATE_SENSORS` | API 31+ (Android 12+) | Required to sample device IMU at $\ge 50\text{Hz}$ to capture rapid automotive crash deceleration curves without OS throttling. |
-| `ACCESS_FINE_LOCATION` | All | Enables high-precision GPS telemetry for dispatching first responders to the exact incident coordinates. |
-| `FOREGROUND_SERVICE` & `WAKE_LOCK` | All | Prevents Android Doze mode and OS battery optimization from killing the collision detection pipeline while driving. |
-| `SEND_SMS` / `CALL_PHONE` | All | Allows conscious or automated dispatch of trauma center telemetry and direct emergency hotline dialing. |
-| `POST_NOTIFICATIONS` | API 33+ (Android 13+) | Displays sticky status notification indicating that driver protection is active. |
+The Android build requests network access, foreground location access, notifications, vibration, and high-rate motion-sensor access where supported. It does not require background location, direct SMS-sending permission, or direct phone-call permission in the current prototype. You can manage Android permissions in system settings; disabling them may make related features unavailable.
 
----
+## Data retention and deletion
 
-## 3. Data Sharing & Third-Party Disclosure
+The prototype does not provide a verified server-side account or emergency-response service. Locally stored app data can generally be cleared through Android app settings or the browser's site-data controls. Map providers and other apps may retain data according to their own policies.
 
-- **Emergency First Responders**: If a vehicular crash is verified and the 15-second abort countdown expires, your location coordinates and impact severity are sent via standard SMS/cellular intent to your designated contacts and local emergency dispatch.
-- **Google Maps Platform (Optional)**: If you configure a Google Maps API Key in Settings, map tile requests and directions queries are processed directly through Google Cloud APIs in accordance with Google's Privacy Policy.
-- **No Commercial Sale of Data**: We do not sell, rent, or monetize your sensor, location, or personal telemetry.
+## Children's privacy
 
----
+This prototype is not designed for children under 13.
 
-## 4. Data Security & On-Device Processing
+## Contact
 
-- All collision evaluation logic, threshold calculations, and state machine transitions occur directly on the device CPU/NPU.
-- Crash history logs stored on-device can be permanently deleted by the user at any time in **Settings &gt; Clear Logs**.
-
----
-
-## 5. Children's Privacy
-AccidentGuard does not knowingly collect information from children under the age of 13.
-
----
-
-## 6. Contact & Data Controller
-For any privacy inquiries or data rights requests, please contact:
-- **Email**: privacy@accidentguard.app
-- **Developer**: AccidentGuard Safety Engineering Team
-- **Website**: https://accidentguard.app
+This repository is maintained as a student project. No verified support email or company address has been configured. For code issues, use the repository's GitHub issue tracker:
+https://github.com/HiiAliasgar/Accident-Guard/issues
