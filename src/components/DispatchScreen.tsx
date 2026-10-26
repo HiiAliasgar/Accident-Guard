@@ -74,7 +74,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   ]);
 
   const timestamp = incident?.timestamp ?? Date.now();
-  const peakG = incident?.peakG ?? 4.8;
+  const peakG = incident?.peakG ?? 0;
 
   const smsPayload = generateEmergencySmsPayload({
     userName: 'AccidentGuard demo user',
