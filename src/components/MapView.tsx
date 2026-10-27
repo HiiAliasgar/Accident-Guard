@@ -174,6 +174,16 @@ export const MapView: React.FC<MapViewProps> = ({
     return () => observer.disconnect();
   }, [activeEngine]);
 
+  // Keep Leaflet's viewport dimensions in sync with responsive layout changes.
+  useEffect(() => {
+    const map = leafletMapRef.current;
+    const container = leafletContainerRef.current;
+    if (activeEngine !== 'leaflet' || !map || !container || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [activeEngine]);
+
   // Leaflet: Theme Change
   useEffect(() => {
     if (activeEngine !== 'leaflet' || !leafletMapRef.current || !tileLayerRef.current) return;
@@ -370,6 +380,19 @@ export const MapView: React.FC<MapViewProps> = ({
   }, [activeEngine]);
 
   // Recalculate Google Maps dimensions when its responsive container changes size.
+  useEffect(() => {
+    const map = googleMapRef.current;
+    const container = googleContainerRef.current;
+    if (activeEngine !== 'google' || !map || !container || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      google.maps.event.trigger(map, 'resize');
+      map.setCenter({ lat: latitude, lng: longitude });
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [activeEngine, latitude, longitude]);
+
+  // Keep Google Maps dimensions correct when its container resizes or becomes visible.
   useEffect(() => {
     const map = googleMapRef.current;
     const container = googleContainerRef.current;
