@@ -24,8 +24,8 @@ import {
 
 interface DispatchScreenProps {
   incident: IncidentRecord | null;
-  coords: Coordinates;
-  nearestHospital: Hospital;
+  coords: Coordinates | null;
+  nearestHospital: Hospital | null;
   contacts: EmergencyContact[];
   onResetToNormal: () => void;
 }
@@ -41,33 +41,33 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   const [voiceSpoken, setVoiceSpoken] = useState<boolean>(false);
   const [isVoiceMuted, setIsVoiceMuted] = useState<boolean>(false);
 
-  // Progressive simulated transmission steps to Hospital ER
+  // These steps document local preparation only; they are not a network transmission.
   const [transmissionSteps] = useState<DispatchTransmissionStatus[]>([
     {
       step: 1,
       title: 'Location available (permission dependent)',
-      detail: `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (Accuracy ±${coords.accuracy ?? 12}m)`,
+      detail: coords ? `${coords?.latitude.toFixed(6)}, ${coords?.longitude.toFixed(6)} (accuracy ±${coords?.accuracy ?? 'unknown'}m)` : 'Location unavailable; no coordinates will be included.',
       status: 'completed',
       timestamp: Date.now() - 3000
     },
     {
       step: 2,
       title: 'Impact telemetry prepared (not transmitted)',
-      detail: `Peak Impact: ${(incident?.peakG ?? 4.8).toFixed(1)}g • Rotational Velocity: ${incident?.peakRotation ?? 280}°/s`,
+      detail: `Recorded sensor reading: ${(incident?.peakG ?? 0).toFixed(1)}g • rotation ${incident?.peakRotation ?? 0}°/s (experimental; not validated).`,
       status: 'completed',
       timestamp: Date.now() - 2000
     },
     {
       step: 3,
       title: 'Emergency message prepared for user review',
-      detail: 'No hospital or emergency-service endpoint is connected in this prototype.',
+      detail: 'Message is only prepared for user review; no contact or emergency endpoint has been notified.',
       status: 'active',
       timestamp: Date.now() - 1000
     },
     {
       step: 4,
       title: 'No dispatch integration configured',
-      detail: 'No ambulance has been requested. Use verified local emergency channels in a real emergency.',
+      detail: 'No ambulance or emergency service has been contacted. Use verified local emergency channels in a real emergency.',
       status: 'pending',
       timestamp: Date.now()
     }
@@ -76,18 +76,18 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   const timestamp = incident?.timestamp ?? Date.now();
   const peakG = incident?.peakG ?? 0;
 
-  const smsPayload = generateEmergencySmsPayload({
-    userName: 'AccidentGuard demo user',
+  const smsPayload = coords ? generateEmergencySmsPayload({
+    userName: 'AccidentGuard user',
     coords,
     peakG,
-    nearestHospital,
+    nearestHospital: nearestHospital ?? { id: 'none', name: 'Not selected', address: '', latitude: coords.latitude, longitude: coords.longitude, phone: '', traumaLevel: 'Not verified' },
     timestamp
-  });
+  }) : { recipientNumbers: [], messageText: 'AccidentGuard incident draft. Device location is unavailable. No emergency service has been contacted.', mapsUrl: '' };
 
   // Demo draft only. No verified hospital recipient is configured.
   const smsHref = `sms:?body=${encodeURIComponent(smsPayload.messageText)}`;
-  const hasVerifiedHospitalPhone = Boolean(nearestHospital.phone && nearestHospital.phone.trim());
-  const googleMapsHref = `https://www.google.com/maps?q=${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}`;
+  const hasVerifiedHospitalPhone = Boolean(nearestHospital?.phone && nearestHospital?.phone.trim());
+  const googleMapsHref = coords ? `https://www.google.com/maps?q=${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}` : null;
 
   // Send Browser Web Notification & Speak Emergency Status
   useEffect(() => {
@@ -130,7 +130,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
         console.warn('Speech synthesis error:', err);
       }
     }
-  }, [peakG, nearestHospital.name, voiceSpoken, isVoiceMuted]);
+  }, [peakG, nearestHospital?.name ?? 'No verified facility selected', voiceSpoken, isVoiceMuted]);
 
   const handleCopy = () => {
     navigator.clipboard?.writeText(smsPayload.messageText).catch(() => {});
@@ -178,7 +178,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
             <h2 className="hospital-name">{nearestHospital.name}</h2>
             <p className="hospital-address">
               <MapPin size={14} className="inline mr-1 text-slate-400" />
-              {nearestHospital.address}
+              {nearestHospital?.address ?? 'No verified facility data available'}
             </p>
           </div>
           <div className="hospital-eta-badge">
