@@ -476,18 +476,22 @@ export const App: React.FC = () => {
                   </div>
                 </div>
 
-                <MapView
-                  key={`map-hosp-${mapKeyRevision}-${mapEngine}`}
-                  latitude={coords?.latitude ?? 0}
-                  longitude={coords?.longitude ?? 0}
-                  hospitals={hospitals}
-                  roadAlerts={roadAlerts}
-                  height="260px"
-                  zoom={13}
-                  engine={mapEngine}
-                  onEngineToggle={handleSelectMapEngine}
-                  onOpenSettings={() => setCurrentTab('settings')}
-                />
+                {coords ? (
+                  <MapView
+                    key={`map-hosp-${mapKeyRevision}-${mapEngine}`}
+                    latitude={coords.latitude}
+                    longitude={coords.longitude}
+                    hospitals={[]}
+                    roadAlerts={[]}
+                    height="260px"
+                    zoom={13}
+                    engine={mapEngine}
+                    onEngineToggle={handleSelectMapEngine}
+                    onOpenSettings={() => setCurrentTab('settings')}
+                  />
+                ) : (
+                  <p role="status" className="p-4 text-sm text-slate-300">Location unavailable: {locationError}</p>
+                )}
 
                 <div className="nearby-hospitals-scroll mt-3">
                   {hospitals.map((hosp, idx) => (
