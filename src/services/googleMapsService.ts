@@ -151,7 +151,7 @@ class GoogleMapsService {
       }
     }
     const envKey = (import.meta as unknown as { env?: { VITE_MAPTILER_API_KEY?: string } }).env?.VITE_MAPTILER_API_KEY;
-    return (envKey || 'p3XhDE9PeYPWDdg26ZT2').trim();
+    return (envKey || '').trim();
   }
 
   public saveMapTilerKey(key: string): void {
