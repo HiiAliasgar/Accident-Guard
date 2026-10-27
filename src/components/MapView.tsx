@@ -158,7 +158,20 @@ export const MapView: React.FC<MapViewProps> = ({
       const markersGroup = L.layerGroup().addTo(map);
       leafletMarkersGroupRef.current = markersGroup;
       leafletMapRef.current = map;
+      // Leaflet measures its container at creation time. Recalculate after the UI has painted,
+      // otherwise maps mounted inside tabs/cards can render as a grey or blank rectangle.
+      window.requestAnimationFrame(() => map.invalidateSize());
     }
+  }, [activeEngine, latitude, longitude, zoom]);
+
+  // Recalculate map dimensions when its responsive container changes size.
+  useEffect(() => {
+    const map = leafletMapRef.current;
+    const container = leafletContainerRef.current;
+    if (activeEngine !== 'leaflet' || !map || !container || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+    observer.observe(container);
+    return () => observer.disconnect();
   }, [activeEngine]);
 
   // Leaflet: Theme Change
@@ -176,6 +189,13 @@ export const MapView: React.FC<MapViewProps> = ({
   // Leaflet: Polyline
   useEffect(() => {
     if (activeEngine !== 'leaflet' || !leafletMapRef.current) return;
+    if (!routeCoordinates || routeCoordinates.length < 2) {
+      if (leafletRoutePolylineRef.current) {
+        leafletRoutePolylineRef.current.remove();
+        leafletRoutePolylineRef.current = null;
+      }
+      return;
+    }
     if (routeCoordinates && routeCoordinates.length > 1) {
       if (leafletRoutePolylineRef.current) {
         leafletRoutePolylineRef.current.setLatLngs(routeCoordinates);
@@ -348,6 +368,19 @@ export const MapView: React.FC<MapViewProps> = ({
       googleMapRef.current = gMap;
     }
   }, [activeEngine]);
+
+  // Recalculate Google Maps dimensions when its responsive container changes size.
+  useEffect(() => {
+    const map = googleMapRef.current;
+    const container = googleContainerRef.current;
+    if (activeEngine !== 'google' || !map || !container || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      google.maps.event.trigger(map, 'resize');
+      map.setCenter({ lat: latitude, lng: longitude });
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [activeEngine, latitude, longitude]);
 
   // Google Maps: Theme Switcher
   useEffect(() => {
