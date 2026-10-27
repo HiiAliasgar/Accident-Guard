@@ -155,6 +155,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = sensorService.subscribe((point) => {
       setCurrentPoint(point);
+      setIsSimulated(sensorService.getIsSimulated());
       crashDetector.processSensorFrame(point);
     });
     return () => unsubscribe();
@@ -608,8 +609,8 @@ export const App: React.FC = () => {
           maxCountdownSeconds={thresholds.countdownDurationSec}
           peakG={currentIncident?.peakG ?? 0}
           peakGyro={currentIncident?.peakRotation ?? 0}
-          latitude={coords?.latitude ?? 0}
-          longitude={coords?.longitude ?? 0}
+          latitude={coords?.latitude ?? null}
+          longitude={coords?.longitude ?? null}
           nearestHospital={nearestHospital}
           onCancel={handleCancelAlert}
           onTriggerImmediateDispatch={handleTriggerImmediateDispatch}
