@@ -160,6 +160,7 @@ export class CrashDetectionEngine {
           this.peakGRecorded = currentG;
           this.peakGyroRecorded = currentGyro;
           
+          emergencyAudio.playImpactAlert();
           this.setState('IMPACT_DETECTED');
         }
         break;
