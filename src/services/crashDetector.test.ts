@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CrashDetectionEngine, DEFAULT_THRESHOLDS } from './crashDetector';
+import { emergencyAudio } from './audioService';
 import type { SensorDataPoint } from '../types';
 
 vi.mock('./audioService', () => ({
@@ -61,7 +62,7 @@ describe('CrashDetectionEngine', () => {
     const engine = new CrashDetectionEngine();
     engine.processSensorFrame(frame(1000, 3.5, 0));
     expect(engine.getState()).toBe('IMPACT_DETECTED');
-    expect(vi.mocked((await import('./audioService')).emergencyAudio.playImpactAlert)).toHaveBeenCalledTimes(1);
+    expect(emergencyAudio.playImpactAlert).toHaveBeenCalledTimes(1);
   });
 
   it('cancels countdown, restores normal state and clears timer', () => {
