@@ -5,6 +5,7 @@ import type { SensorDataPoint } from '../types';
 vi.mock('./audioService', () => ({
   emergencyAudio: {
     startSiren: vi.fn(),
+    playImpactAlert: vi.fn(),
     stopSiren: vi.fn(),
     playCountdownBeep: vi.fn(),
     playCancelChime: vi.fn(),
@@ -60,6 +61,7 @@ describe('CrashDetectionEngine', () => {
     const engine = new CrashDetectionEngine();
     engine.processSensorFrame(frame(1000, 3.5, 0));
     expect(engine.getState()).toBe('IMPACT_DETECTED');
+    expect(vi.mocked((await import('./audioService')).emergencyAudio.playImpactAlert)).toHaveBeenCalledTimes(1);
   });
 
   it('cancels countdown, restores normal state and clears timer', () => {
