@@ -201,12 +201,12 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
 
           {hasVerifiedHospitalPhone ? (
             <a
-              href={`tel:${nearestHospital.phone.replace(/[^0-9+]/g, '')}`}
+              href={`tel:${(nearestHospital?.phone ?? '').replace(/[^0-9+]/g, '')}`}
               className="action-btn direct-call-btn"
               id="btn-direct-call"
             >
               <PhoneCall size={18} />
-              <span>Call verified hospital ({nearestHospital.phone})</span>
+              <span>Call verified hospital ({nearestHospital?.phone ?? ''})</span>
             </a>
           ) : (
             <span className="action-btn direct-call-btn" aria-disabled="true">
