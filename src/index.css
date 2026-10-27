@@ -3288,3 +3288,72 @@ button, a, input, select {
 }
 
 
+
+
+/* Mobile-first fixes for the ML reference modal */
+@media (max-width: 600px) {
+  .ml-modal-overlay {
+    padding: 8px;
+    align-items: center;
+  }
+  .ml-modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 16px);
+    border-radius: 20px;
+  }
+  .ml-modal-header {
+    gap: 12px;
+    padding: 14px 16px;
+    align-items: flex-start;
+  }
+  .ml-modal-header h2 {
+    font-size: 1.15rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .ml-modal-body {
+    padding: 14px;
+    min-height: 0;
+    overscroll-behavior: contain;
+  }
+  .state-node {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+    padding: 11px 12px;
+    font-size: 0.8rem;
+    min-width: 0;
+  }
+  .state-node .node-title,
+  .state-node .node-desc {
+    display: block;
+    width: 100%;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .state-node .node-desc {
+    font-size: 0.78rem;
+  }
+  .node-arrow {
+    padding: 2px 0;
+    overflow-wrap: anywhere;
+  }
+  .math-cards-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .math-card,
+  .math-formula {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .comparison-table {
+    min-width: 560px;
+  }
+  .ml-modal-footer {
+    padding: 12px 14px;
+  }
+}
