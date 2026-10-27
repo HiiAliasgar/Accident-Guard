@@ -2,7 +2,7 @@
 
 AccidentGuard is an experimental student project exploring smartphone motion sensors, location display, and simulated crash-alert screens. It is **not a certified safety app** and must not be relied on in a real emergency.
 
-[Live demo](https://hiializgar.github.io/Accident-Guard/) · [Source code](https://github.com/HiiAliasgar/Accident-Guard)
+[Live demo](https://hiialiasgar.github.io/Accident-Guard/) · [Source code](https://github.com/HiiAliasgar/Accident-Guard)
 
 ## Current status
 
