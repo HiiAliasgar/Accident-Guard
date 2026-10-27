@@ -231,7 +231,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
       </div>
 
       {/* Interactive Map View with Incident Coordinates & Hospital */}
-      <div className="dispatch-map-wrapper">
+      {coords && <div className="dispatch-map-wrapper">
         <div className="dispatch-map-header">
           <div className="flex items-center space-x-2">
             <Radio size={16} className="text-cyan-400 animate-pulse" />
@@ -248,9 +248,10 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
           zoom={14}
           height="220px"
         /> : <p role="status">Location unavailable. Grant location permission and retry to show the current position.</p>}
-      </div>
+      </div>}
+      {!coords && <p role="status">Location unavailable. Grant location permission and retry to show the current position.</p>}
 
-      {/* Real-time Hospital ER Telemetry Reception Progress */}
+      {/* Local incident preparation status — no dispatch backend */}
       <div className="dispatch-transmission-feed">
         <h3 className="section-title">
           <Shield size={16} className="text-emerald-400" />
@@ -304,7 +305,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
         </div>
         <pre className="sms-text-content">{smsPayload.messageText}</pre>
         <div className="sms-recipients-row">
-          <span className="recipients-label">Draft recipients (none pre-filled):</span>
+          <span className="recipients-label">Saved contacts (not automatically notified):</span>
           {smsPayload.recipientNumbers.map((num, idx) => (
             <span key={idx} className="recipient-pill">{num}</span>
           ))}
@@ -315,7 +316,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
       <div className="emergency-contacts-summary">
         <h3 className="section-title">
           <PhoneCall size={16} className="text-cyan-400" />
-          <span>Next of Kin & Primary Contacts</span>
+          <span>Emergency contacts (not automatically notified)</span>
         </h3>
         <div className="contacts-mini-grid">
           {contacts.map((c) => (
@@ -341,7 +342,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
           id="btn-reset-normal"
         >
           <RotateCcw size={16} />
-          <span>Reset System to Safe Monitoring Mode</span>
+          <span>Return to monitoring</span>
         </button>
       </div>
     </div>
