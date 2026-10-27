@@ -10,8 +10,8 @@ interface AlertScreenProps {
   maxCountdownSeconds: number;
   peakG: number;
   peakGyro: number;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   nearestHospital: Hospital | null;
   onCancel: () => void;
   onTriggerImmediateDispatch: () => void;
@@ -157,13 +157,17 @@ export const AlertScreen: React.FC<AlertScreenProps> = ({
           )}
 
           <div className="mini-map-container mt-3">
-            <MapView
-              latitude={latitude}
-              longitude={longitude}
-              hospitals={nearestHospital ? [nearestHospital] : []}
-              height="130px"
-              zoom={14}
-            />
+            {latitude !== null && longitude !== null ? (
+              <MapView
+                latitude={latitude}
+                longitude={longitude}
+                hospitals={nearestHospital ? [nearestHospital] : []}
+                height="130px"
+                zoom={14}
+              />
+            ) : (
+              <p role="status" className="p-3 text-sm text-slate-300">Device location unavailable. No map coordinates are available for this alert.</p>
+            )}
           </div>
         </div>
       </div>
