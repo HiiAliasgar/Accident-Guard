@@ -66,7 +66,11 @@ def make_windows(frame: pd.DataFrame, window_samples: int) -> tuple[np.ndarray, 
     features: list[list[float]] = []
     labels: list[int] = []
     groups: list[str] = []
-    for session_id, session in frame.groupby("session_id", sort=False):
+    has_subjects = "subject_id" in frame.columns and frame["subject_id"].notna().all()
+    grouping_column = "subject_id" if has_subjects else "session_id"
+    grouping_by_session = frame.groupby("session_id", sort=False)
+    for session_id, session in grouping_by_session:
+        group_value = str(session[grouping_column].iloc[0])
         values = session[FEATURE_COLUMNS].to_numpy(dtype=float)
         target = session["label"].map(LABEL_MAP).to_numpy(dtype=int)
         # Only full, non-overlapping windows, never crossing session boundaries.
@@ -95,7 +99,7 @@ def make_windows(frame: pd.DataFrame, window_samples: int) -> tuple[np.ndarray, 
                 float(np.std(block[:, 2])),
             ])
             labels.append(int(np.any(block_labels == 1)))
-            groups.append(str(session_id))
+            groups.append(group_value)
     if not features:
         raise ValueError(f"No windows formed: each session needs at least {window_samples} samples.")
     return np.asarray(features), np.asarray(labels), np.asarray(groups)
@@ -165,6 +169,7 @@ def main() -> int:
         "dataset": str(args.input),
         "sample_rows": int(len(data)),
         "session_count": int(data["session_id"].nunique()),
+        "split_grouping": "subject_id" if "subject_id" in data.columns and data["subject_id"].notna().all() else "session_id",
         "window_samples": int(args.window_samples),
         "window_count": int(len(y)),
         "window_label_counts": {"normal": int(np.sum(y == 0)), "crash": int(np.sum(y == 1))},
@@ -184,7 +189,7 @@ def main() -> int:
         ],
         "limitations": [
             "No bundled dataset; metrics describe only the supplied CSV.",
-            "Session-aware splitting reduces leakage but does not guarantee subject independence unless session_id is defined at subject/trip granularity.",
+            "Splits are subject-aware when a non-missing subject_id column is supplied; otherwise session-aware. Data collection must ensure session IDs represent distinct trips and subjects.",
             "False positives per driving hour and event detection latency are not computed by this window classifier.",
             "Not integrated into the app and not safety-validated.",
         ],
