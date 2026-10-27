@@ -154,6 +154,26 @@ export const MapView: React.FC<MapViewProps> = ({
         subdomains: provider.subdomains ?? 'abc'
       }).addTo(map);
 
+      let fallbackApplied = false;
+      tileLayer.on('tileerror', () => {
+        // An invalid/expired tile API key must not leave a permanent branded error watermark.
+        // Switch one time to the key-free provider for this theme; network failures remain visible.
+        if (!mapTilerKey || fallbackApplied || !map.hasLayer(tileLayer)) return;
+        fallbackApplied = true;
+        map.removeLayer(tileLayer);
+        const fallbackProvider = getTileProviders('')[activeTheme];
+        const fallbackLayer = L.tileLayer(fallbackProvider.url, {
+          maxZoom: fallbackProvider.maxZoom,
+          subdomains: fallbackProvider.subdomains ?? 'abc'
+        }).addTo(map);
+        tileLayerRef.current = fallbackLayer;
+        try {
+          googleMapsService.clearMapTilerKey();
+        } catch {
+          // Map fallback still works for this map instance if browser storage is unavailable.
+        }
+      });
+
       tileLayerRef.current = tileLayer;
       const markersGroup = L.layerGroup().addTo(map);
       leafletMarkersGroupRef.current = markersGroup;
