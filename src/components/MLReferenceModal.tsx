@@ -16,7 +16,7 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
         <div className="ml-modal-header">
           <div className="flex items-center space-x-2">
             <Cpu size={20} className="text-cyan-400" />
-            <h2 className="text-lg font-bold text-white">Algorithm & ML Architecture Specification</h2>
+            <h2 className="text-lg font-bold text-white">Crash Detection & ML Roadmap</h2>
           </div>
           <button
             type="button"
@@ -38,7 +38,7 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
             <div className="state-machine-flow">
               <div className="state-node safe">
                 <span className="node-title">NORMAL</span>
-                <span className="node-desc">50Hz telemetry, road vibration filtering</span>
+                <span className="node-desc">Sensor samples or simulation data; rate depends on platform</span>
               </div>
               <span className="node-arrow">→ ||a|| &gt; 3.5g →</span>
               <div className="state-node warning">
@@ -53,7 +53,7 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
               <span className="node-arrow">→ Stillness verified →</span>
               <div className="state-node danger">
                 <span className="node-title">COUNTDOWN &amp; ALERT</span>
-                <span className="node-desc">15s abort window → GPS SMS Dispatch</span>
+                <span className="node-desc">15s cancel window → local alert / manual SMS draft</span>
               </div>
             </div>
           </div>
@@ -85,7 +85,7 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
                 <span className="math-title">Post-Impact Stillness Variance:</span>
                 <code className="math-formula">Var(a) = (1/N) ∑(||a_i|| - μ)²</code>
                 <p className="math-explain">
-                  Over a 3.0s sliding window (N=150 samples @ 50Hz). If Var &lt; 0.25g, vehicle immobilisation is confirmed.
+                  Over a 3.0s sliding window (N=150 samples @ 50Hz). If Var &lt; 0.25g, low motion is observed in the sampled window; this is not proof of a crash or vehicle immobilisation.
                 </p>
               </div>
 
@@ -93,7 +93,7 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
                 <span className="math-title">Great-Circle Trauma Routing (Haversine):</span>
                 <code className="math-formula">d = 2R · arcsin(√(sin²(Δφ/2) + cos φ₁ cos φ₂ sin²(Δλ/2)))</code>
                 <p className="math-explain">
-                  Calculates real-time spherical distance to all registered Level-1/Level-2 trauma facilities.
+                  Calculates straight-line distance to configured coordinates. Current hospital entries are demo fixtures, not verified facilities.
                 </p>
               </div>
             </div>
@@ -110,8 +110,8 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
                 <thead>
                   <tr>
                     <th>Dimension</th>
-                    <th>Current Heuristic Engine (MVP)</th>
-                    <th>Production ML Pipeline (Phase 2)</th>
+                    <th>Implemented prototype</th>
+                    <th>Proposed ML Pipeline (not implemented)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -123,16 +123,16 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
                   <tr>
                     <td><strong>False Positive Rejection</strong></td>
                     <td>Rejects phone drops using stillness window &amp; gyro threshold</td>
-                    <td>Temporal pattern recognition across 2.5s window (99.8% precision)</td>
+                    <td>Not implemented; requires labeled crash and non-crash data plus held-out evaluation</td>
                   </tr>
                   <tr>
                     <td><strong>Edge Inference Latency</strong></td>
                     <td>&lt; 0.5 ms (zero CPU overhead, battery efficient)</td>
-                    <td>~12 ms (via ONNX Runtime Mobile / TensorFlow Lite INT8 quantized)</td>
+                    <td>Not measured; depends on model, device, and runtime</td>
                   </tr>
                   <tr>
                     <td><strong>Hardware Requirements</strong></td>
-                    <td>Runs seamlessly in web browser, Android, iOS, or embedded microcontrollers</td>
+                    <td>Current prototype uses deterministic rules; sensor access and timing vary by platform</td>
                     <td>Requires TFLite / CoreML runtime embedded in mobile APK/IPA</td>
                   </tr>
                 </tbody>
