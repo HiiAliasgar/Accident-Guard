@@ -53,11 +53,9 @@ export function getSortedHospitals(
         hospital.longitude
       );
       // Road ETA is unavailable without a real routing provider.
-      const etaMinutes = undefined;
       return {
         ...hospital,
-        distanceKm: distance,
-        etaMinutes
+        distanceKm: distance
       };
     })
     .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
