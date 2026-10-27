@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, "improve/**"]
+    branches: [main, "improve/**", "rebuild/**"]
 
 concurrency:
   group: accident-guard-ci-${{ github.ref }}
