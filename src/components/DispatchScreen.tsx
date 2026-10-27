@@ -174,17 +174,17 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
       <div className="dispatch-hospital-card">
         <div className="hospital-header">
           <div className="hospital-info">
-            <span className="hospital-tag">{nearestHospital.traumaLevel}</span>
-            <h2 className="hospital-name">{nearestHospital.name}</h2>
+            <span className="hospital-tag">{nearestHospital?.traumaLevel ?? 'No verified facility selected'}</span>
+            <h2 className="hospital-name">{nearestHospital?.name ?? 'No verified facility selected'}</h2>
             <p className="hospital-address">
               <MapPin size={14} className="inline mr-1 text-slate-400" />
               {nearestHospital?.address ?? 'No verified facility data available'}
             </p>
           </div>
           <div className="hospital-eta-badge">
-            <span className="eta-num">{nearestHospital.etaMinutes ?? 4}</span>
+            <span className="eta-num">{nearestHospital?.etaMinutes ?? '—'}</span>
             <span className="eta-unit">MIN ETA</span>
-            <span className="distance-num">({nearestHospital.distanceKm} km away)</span>
+            <span className="distance-num">({nearestHospital?.distanceKm ?? '—'} km straight-line distance)</span>
           </div>
         </div>
 
@@ -216,14 +216,16 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
           )}
 
           <a
-            href={googleMapsHref}
+            href={googleMapsHref ?? undefined}
             target="_blank"
             rel="noopener noreferrer"
             className="action-btn google-maps-btn"
             id="btn-google-maps"
+            aria-disabled={!googleMapsHref}
+            onClick={(event) => { if (!googleMapsHref) event.preventDefault(); }}
           >
             <ExternalLink size={18} />
-            <span>View demonstration coordinates on Google Maps</span>
+            <span>{coords ? 'View current device coordinates on Google Maps' : 'Location unavailable'}</span>
           </a>
         </div>
       </div>
@@ -233,19 +235,19 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
         <div className="dispatch-map-header">
           <div className="flex items-center space-x-2">
             <Radio size={16} className="text-cyan-400 animate-pulse" />
-            <span className="font-semibold text-white">Demo Location Preview — Not Emergency Routing</span>
+            <span className="font-semibold text-white">Location preview — not emergency routing</span>
           </div>
           <span className="text-xs text-slate-400">
-            Demo/current coordinates: {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
+            {coords ? `Current coordinates: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}` : 'Location unavailable — map not centered on current position'}
           </span>
         </div>
-        <MapView
+        {coords ? <MapView
           latitude={coords.latitude}
           longitude={coords.longitude}
-          hospitals={[nearestHospital]}
+          hospitals={nearestHospital ? [nearestHospital] : []}
           zoom={14}
           height="220px"
-        />
+        /> : <p role="status">Location unavailable. Grant location permission and retry to show the current position.</p>}
       </div>
 
       {/* Real-time Hospital ER Telemetry Reception Progress */}
