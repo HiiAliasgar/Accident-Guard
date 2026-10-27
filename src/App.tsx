@@ -598,8 +598,8 @@ export const App: React.FC = () => {
         <AlertScreen
           countdownSeconds={countdownRemaining}
           maxCountdownSeconds={thresholds.countdownDurationSec}
-          peakG={currentIncident?.peakG ?? 4.8}
-          peakGyro={currentIncident?.peakRotation ?? 280}
+          peakG={currentIncident?.peakG ?? 0}
+          peakGyro={currentIncident?.peakRotation ?? 0}
           latitude={coords?.latitude ?? 0}
           longitude={coords?.longitude ?? 0}
           nearestHospital={nearestHospital}
