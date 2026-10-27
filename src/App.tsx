@@ -53,23 +53,6 @@ import {
 import { emergencyAudio } from './services/audioService';
 import { hardwareService } from './services/hardwareService';
 
-const INITIAL_CONTACTS: EmergencyContact[] = [
-  {
-    id: 'contact-1',
-    name: 'Sarah Mercer',
-    relationship: 'Spouse',
-    phone: '+1 (415) 555-0192',
-    isPrimary: true
-  },
-  {
-    id: 'contact-2',
-    name: 'Dr. Michael Chen',
-    relationship: 'Family Physician',
-    phone: '+1 (415) 555-8833',
-    isPrimary: false
-  }
-];
-
 export const App: React.FC = () => {
   // Navigation Tabs: Cockpit Navigation (Default), Sensors Telemetry, Hospitals, History, Settings
   const [currentTab, setCurrentTab] = useState<'navigation' | 'sensors' | 'hospitals' | 'history' | 'settings'>('navigation');
@@ -95,9 +78,17 @@ export const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState<boolean>(emergencyAudio.getIsMuted());
 
   // Location & Hospitals
-  const [coords, setCoords] = useState<Coordinates>({ latitude: 37.7749, longitude: -122.4194 });
-  const [hospitals, setHospitals] = useState<Hospital[]>(DEFAULT_HOSPITALS);
-  const [contacts, setContacts] = useState<EmergencyContact[]>(INITIAL_CONTACTS);
+  const [coords, setCoords] = useState<Coordinates | null>(null);
+  const [locationError, setLocationError] = useState<string>('Location has not been acquired.');
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [contacts, setContacts] = useState<EmergencyContact[]>(() => {
+    try {
+      const saved = localStorage.getItem('accidentguard_emergency_contacts');
+      return saved ? (JSON.parse(saved) as EmergencyContact[]) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Map Engine & API Key State
   const [mapEngine, setMapEngine] = useState<MapEngine>(() => {
@@ -137,12 +128,17 @@ export const App: React.FC = () => {
 
   // Initialize GPS Coordinates and Hospitals
   useEffect(() => {
+    let active = true;
     getCurrentCoordinates().then((pos) => {
+      if (!active) return;
       setCoords(pos);
-      const sorted = getSortedHospitals(pos, DEFAULT_HOSPITALS);
-      setHospitals(sorted);
-      navigationService.setDestinationHospital(sorted[0]);
+      setLocationError('');
+    }).catch((error: unknown) => {
+      if (!active) return;
+      setCoords(null);
+      setLocationError(error instanceof Error ? error.message : 'Location unavailable.');
     });
+    return () => { active = false; };
   }, []);
 
   // Subscribe to Navigation & Driving Telemetry Updates
@@ -243,14 +239,22 @@ export const App: React.FC = () => {
 
   // Contacts management
   const handleAddContact = useCallback((c: EmergencyContact) => {
-    setContacts((prev) => [...prev, c]);
+    setContacts((prev) => {
+      const next = [...prev.filter((item) => item.id !== c.id), c];
+      localStorage.setItem('accidentguard_emergency_contacts', JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const handleDeleteContact = useCallback((id: string) => {
-    setContacts((prev) => prev.filter((c) => c.id !== id));
+    setContacts((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      localStorage.setItem('accidentguard_emergency_contacts', JSON.stringify(next));
+      return next;
+    });
   }, []);
 
-  const nearestHospital = hospitals[0] || DEFAULT_HOSPITALS[0];
+  const nearestHospital = hospitals[0] || null;
 
   // Helper status color and text badge (memoized to avoid re-computation on unrelated renders)
   const statusBadge = useMemo(() => {
@@ -372,8 +376,8 @@ export const App: React.FC = () => {
                 <div className="cockpit-map-card">
                   <MapView
                     key={`map-nav-${mapKeyRevision}-${mapEngine}`}
-                    latitude={telemetry.currentLocation.latitude}
-                    longitude={telemetry.currentLocation.longitude}
+                    latitude={coords?.latitude ?? 0}
+                    longitude={coords?.longitude ?? 0}
                     heading={telemetry.headingDeg}
                     speedKmH={telemetry.currentSpeedKmH}
                     hospitals={hospitals}
@@ -461,7 +465,7 @@ export const App: React.FC = () => {
                     <div>
                       <h2 className="text-sm font-bold text-white">Trauma Centers & EMS Coverage</h2>
                       <p className="text-xs text-slate-400">
-                        GPS: {coords.latitude.toFixed(4)}, {coords.longitude.toFixed(4)} (Accuracy ±12m)
+                        {coords ? `GPS: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)} (accuracy ±${Math.round(coords.accuracy ?? 0)}m)` : `GPS unavailable: ${locationError}`}
                       </p>
                     </div>
                     <span className="hospital-count-badge">{hospitals.length} Centers</span>
@@ -470,8 +474,8 @@ export const App: React.FC = () => {
 
                 <MapView
                   key={`map-hosp-${mapKeyRevision}-${mapEngine}`}
-                  latitude={coords.latitude}
-                  longitude={coords.longitude}
+                  latitude={coords?.latitude ?? 0}
+                  longitude={coords?.longitude ?? 0}
                   hospitals={hospitals}
                   roadAlerts={roadAlerts}
                   height="260px"
@@ -596,8 +600,8 @@ export const App: React.FC = () => {
           maxCountdownSeconds={thresholds.countdownDurationSec}
           peakG={currentIncident?.peakG ?? 4.8}
           peakGyro={currentIncident?.peakRotation ?? 280}
-          latitude={coords.latitude}
-          longitude={coords.longitude}
+          latitude={coords?.latitude ?? 0}
+          longitude={coords?.longitude ?? 0}
           nearestHospital={nearestHospital}
           onCancel={handleCancelAlert}
           onTriggerImmediateDispatch={handleTriggerImmediateDispatch}
