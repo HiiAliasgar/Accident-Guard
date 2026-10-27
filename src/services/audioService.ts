@@ -28,6 +28,37 @@ class EmergencyAudioService {
     return this.isMuted;
   }
 
+
+  // Short, attention-grabbing impact alert. Called as soon as the detector crosses
+  // the impact threshold; the repeating siren starts later if confirmation succeeds.
+  public playImpactAlert(): void {
+    if (this.isMuted) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      [880, 660, 880].forEach((frequency, index) => {
+        const start = now + index * 0.16;
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.22, start + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.13);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(start);
+        osc.stop(start + 0.14);
+      });
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([180, 70, 180]);
+      }
+    } catch {
+      // Mobile browsers may block audio until the user has interacted with the page.
+    }
+  }
+
   // Plays a single alert beep (used on countdown ticks)
   public playCountdownBeep(highPitch: boolean = false): void {
     if (this.isMuted) return;
