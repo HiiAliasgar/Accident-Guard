@@ -20,10 +20,10 @@ describe('locationService', () => {
     expect(reverse).toBe(forward);
   });
 
-  it('sorts hospitals by increasing distance and provides ETA estimates', () => {
+  it('sorts facilities by straight-line distance without inventing road ETA', () => {
     const sorted = getSortedHospitals({ latitude: 19, longitude: 73 }, hospitals);
     expect(sorted.map((hospital) => hospital.id)).toEqual(['near', 'nearest', 'far']);
-    expect(sorted.every((hospital) => typeof hospital.etaMinutes === 'number' && hospital.etaMinutes >= 3)).toBe(true);
+    expect(sorted.every((hospital) => hospital.etaMinutes === undefined)).toBe(true);
   });
 
   it('does not mutate the provided hospital list', () => {
