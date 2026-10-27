@@ -144,12 +144,9 @@ class GoogleMapsService {
    * Retrieves MapTiler Cloud API Key (from localStorage, .env, or default)
    */
   public getMapTilerKey(): string {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('accidentguard_maptiler_api_key');
-      if (stored && stored.trim().length > 0) {
-        return stored.trim();
-      }
-    }
+    // Do not auto-load a persisted key: stale or invalid local keys were causing
+    // the invalid-key watermark to appear even when a public tile fallback exists.
+    // A user must explicitly enter/test a key in Settings during this session.
     const envKey = (import.meta as unknown as { env?: { VITE_MAPTILER_API_KEY?: string } }).env?.VITE_MAPTILER_API_KEY;
     return (envKey || '').trim();
   }
