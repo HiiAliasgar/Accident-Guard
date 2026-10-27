@@ -56,11 +56,11 @@ class NavigationService {
 
   // These methods remain no-ops until a genuine vehicle telemetry source is
   // integrated. Phone GPS does not provide a vehicle speed limit or road name.
-  public accelerate(): void {}
-  public brake(): void {}
+  public accelerate(_delta?: number): void {}
+  public brake(_delta?: number): void {}
   public cruise(): void {}
   public emergencyStop(): void {}
-  public setSpeed(): void {}
+  public setSpeed(_speed?: number): void {}
 
   public toggleUnits(): void {
     this.telemetry = {
