@@ -26,7 +26,7 @@ type TileLayerTheme = 'google_streets' | 'cockpit_dark' | 'satellite_hybrid';
 
 const getTileProviders = (mapTilerKey: string): Record<TileLayerTheme, { name: string; url: string; subdomains?: string; maxZoom: number }> => ({
   google_streets: {
-    name: mapTilerKey ? 'MapTiler Streets' : 'Google Streets',
+    name: mapTilerKey ? 'MapTiler Streets' : 'OpenStreetMap Streets',
     url: mapTilerKey
       ? `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${mapTilerKey}`
       : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
@@ -34,7 +34,7 @@ const getTileProviders = (mapTilerKey: string): Record<TileLayerTheme, { name: s
     maxZoom: 20
   },
   cockpit_dark: {
-    name: mapTilerKey ? 'MapTiler Dark' : 'Cockpit Night',
+    name: mapTilerKey ? 'MapTiler Dark' : 'CARTO Dark',
     url: mapTilerKey
       ? `https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}.png?key=${mapTilerKey}`
       : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
@@ -42,7 +42,7 @@ const getTileProviders = (mapTilerKey: string): Record<TileLayerTheme, { name: s
     maxZoom: 20
   },
   satellite_hybrid: {
-    name: mapTilerKey ? 'MapTiler Satellite' : 'Satellite View',
+    name: mapTilerKey ? 'MapTiler Satellite' : 'Esri Satellite',
     url: mapTilerKey
       ? `https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=${mapTilerKey}`
       : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -670,7 +670,7 @@ export const MapView: React.FC<MapViewProps> = ({
       >
         <span className={`engine-dot-pulse ${activeEngine === 'google' ? 'google' : mapTilerKey ? 'google' : 'leaflet'}`}></span>
         <span>
-          {activeEngine === 'google' ? 'Google Maps JS' : mapTilerKey ? 'MapTiler Cloud HD' : 'Leaflet (OpenStreetMap)'}
+          {activeEngine === 'google' ? 'Google Maps JS' : mapTilerKey ? 'MapTiler Cloud' : 'OpenStreetMap / CARTO'}
         </span>
       </div>
 
