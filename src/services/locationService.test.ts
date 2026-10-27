@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateHaversineDistance, getSortedHospitals } from './locationService';
+import { calculateHaversineDistance, getSortedHospitals, DEFAULT_HOSPITALS } from './locationService';
 import type { Hospital } from '../types';
 
 const hospitals: Hospital[] = [
@@ -9,6 +9,9 @@ const hospitals: Hospital[] = [
 ];
 
 describe('locationService', () => {
+  it('ships no unverified hospital fixtures by default', () => {
+    expect(DEFAULT_HOSPITALS).toEqual([]);
+  });
   it('returns zero distance for identical coordinates', () => {
     expect(calculateHaversineDistance(19, 73, 19, 73)).toBe(0);
   });
