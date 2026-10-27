@@ -72,6 +72,7 @@ export const App: React.FC = () => {
 
   // Simulation & Device settings
   const [isSimulated, setIsSimulated] = useState<boolean>(sensorService.getIsSimulated());
+  const [sensorModeNotice, setSensorModeNotice] = useState<string>('Simulation is active. Enable device sensors explicitly to attempt real motion input.');
   const [activeScenario, setActiveScenario] = useState<SimulationScenario>('NONE');
   const [isMobileFrame, setIsMobileFrame] = useState<boolean>(true);
   const [showMLModal, setShowMLModal] = useState<boolean>(false);
@@ -444,6 +445,37 @@ export const App: React.FC = () => {
             {/* 2. SENSORS & ACCELEROMETER TELEMETRY */}
             {currentTab === 'sensors' && (
               <div className="dashboard-view-content">
+                <section className="p-4 rounded-xl border border-slate-700 bg-slate-900/60" aria-label="Sensor source mode">
+                  <h2 className="font-semibold text-white">Sensor source</h2>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Current source: <strong>{isSimulated ? 'SIMULATION / TEST DATA' : 'DEVICE MOTION EVENTS'}</strong>
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">{sensorModeNotice}</p>
+                  <button
+                    type="button"
+                    className="toolbar-btn mt-3"
+                    onClick={() => {
+                      if (isSimulated) {
+                        setSensorModeNotice('Requesting motion permission. Real mode will activate only after a fresh device event is received.');
+                        void sensorService.requestHardwarePermissions().then((granted) => {
+                          if (!granted) {
+                            setSensorModeNotice('Motion permission or compatible sensors unavailable. Simulation remains active; crash detection is not automatic in this mode.');
+                            return;
+                          }
+                          setSensorModeNotice('Permission granted. Waiting for a fresh motion sample; simulation remains labelled until one arrives.');
+                        });
+                      } else {
+                        sensorService.setIsSimulated(true);
+                        setIsSimulated(true);
+                        setSensorModeNotice('Simulation is active. Values on the sensor graph are test data, not real telemetry.');
+                      }
+                    }}
+                  >
+                    {isSimulated ? 'Enable device sensors' : 'Switch to simulation mode'}
+                  </button>
+                  <p className="mt-2 text-xs text-amber-300">This prototype is not safety-certified. Browser sensor events may stop in the background.</p>
+                </section>
+
                 {/* Real-time Oscilloscope Waveform */}
                 <SensorGraph currentPoint={currentPoint} historyLimit={150} />
 
