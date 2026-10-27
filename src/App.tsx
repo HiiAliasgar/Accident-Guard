@@ -372,36 +372,40 @@ export const App: React.FC = () => {
             {/* 1. COCKPIT NAVIGATION & GOOGLE MAPS HUD */}
             {currentTab === 'navigation' && (
               <div className="cockpit-view-content">
-                {/* Google Maps Style Navigation Map */}
+                {/* Show the map only after the device has supplied a real location. */}
                 <div className="cockpit-map-card">
-                  <MapView
-                    key={`map-nav-${mapKeyRevision}-${mapEngine}`}
-                    latitude={coords?.latitude ?? 0}
-                    longitude={coords?.longitude ?? 0}
-                    heading={telemetry.headingDeg}
-                    speedKmH={telemetry.currentSpeedKmH}
-                    hospitals={hospitals}
-                    roadAlerts={roadAlerts}
-                    routeCoordinates={DEFAULT_ROUTE_COORDINATES}
-                    height="320px"
-                    zoom={15}
-                    isCockpitMode={true}
-                    engine={mapEngine}
-                    onEngineToggle={handleSelectMapEngine}
-                    onOpenSettings={() => setCurrentTab('settings')}
-                  />
+                  {coords ? (
+                    <MapView
+                      key={`map-nav-${mapKeyRevision}-${mapEngine}`}
+                      latitude={coords.latitude}
+                      longitude={coords.longitude}
+                      heading={0}
+                      speedKmH={0}
+                      hospitals={[]}
+                      roadAlerts={[]}
+                      routeCoordinates={[]}
+                      height="320px"
+                      zoom={15}
+                      isCockpitMode={true}
+                      engine={mapEngine}
+                      onEngineToggle={handleSelectMapEngine}
+                      onOpenSettings={() => setCurrentTab('settings')}
+                    />
+                  ) : (
+                    <div role="status" className="p-5 text-sm text-slate-300">
+                      <h2 className="text-base font-semibold text-white">Current location unavailable</h2>
+                      <p className="mt-2">{locationError}</p>
+                      <p className="mt-2">Grant location permission and reload to show your position. Route distance, ETA, road name, traffic and vehicle speed are unavailable until a real provider supplies them.</p>
+                      <a className="inline-block mt-3 underline" href="https://www.google.com/maps" target="_blank" rel="noreferrer">Open Google Maps</a>
+                    </div>
+                  )}
                 </div>
 
-                {/* Speedometer, Road Speed Limits, and Active Road Alerts */}
-                <CockpitHUD
-                  telemetry={telemetry}
-                  activeAlert={activeRoadAlert}
-                  onAccelerate={() => navigationService.accelerate(10)}
-                  onBrake={() => navigationService.brake(15)}
-                  onCruise={() => navigationService.cruise()}
-                  onEmergencyStop={() => navigationService.emergencyStop()}
-                  onToggleUnits={() => navigationService.toggleUnits()}
-                />
+                <section className="p-4 rounded-xl border border-slate-700 bg-slate-900/60" aria-label="Navigation status">
+                  <h2 className="font-semibold text-white">Navigation provider not configured</h2>
+                  <p className="mt-2 text-sm text-slate-300">Live road routing is not currently connected. Route distance, ETA, speed limits, live traffic and road hazards are intentionally unavailable instead of simulated.</p>
+                  <p className="mt-2 text-xs text-amber-300">Crash detection is experimental and has not been safety-validated.</p>
+                </section>
 
                 {/* Quick Crash Simulator Launcher Bar */}
                 <div className="quick-sim-bar">
