@@ -107,14 +107,14 @@ export function generateEmergencySmsPayload(params: {
   const mapsUrl = `https://maps.google.com/?q=${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}`;
 
   const messageText =
-`[ACCIDENTGUARD DEMO — NOT A VERIFIED EMERGENCY ALERT]
-This is a demonstration draft from an experimental student prototype.
+`[ACCIDENTGUARD — EXPERIMENTAL ALERT DRAFT; NOT A DISPATCH SERVICE]
+This is a message draft from an experimental student prototype.
 Driver label: ${userName}
 Time: ${timeStr}
 Experimental sensor reading: ${peakG.toFixed(1)}g (not validated)
-Displayed coordinates: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (±${coords.accuracy ?? 10}m)
+Device coordinates: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (±${coords.accuracy ?? 10}m)
 Map link: ${mapsUrl}
-Displayed facility: ${nearestHospital.name}
+Facility context (unverified): ${nearestHospital.name}
 WARNING: No emergency service has been contacted. Verify all information and contact local emergency services directly in a real emergency.`;
 
   return {
