@@ -10,8 +10,8 @@ interface AlertScreenProps {
   maxCountdownSeconds: number;
   peakG: number;
   peakGyro: number;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   nearestHospital: Hospital | null;
   onCancel: () => void;
   onTriggerImmediateDispatch: () => void;
@@ -98,7 +98,7 @@ export const AlertScreen: React.FC<AlertScreenProps> = ({
 
           <h2 className="alert-headline">Are you OK?</h2>
           <p className="alert-subtext">
-            Automated emergency dispatch in progress. If this is a false alarm or you do not need help, tap below immediately.
+            This is an experimental alert. No contact or emergency service is being notified automatically. Cancel if you are safe; use the available manual contact options if you need help.
           </p>
         </div>
 
@@ -126,7 +126,7 @@ export const AlertScreen: React.FC<AlertScreenProps> = ({
             id="btn-dispatch-now"
           >
             <PhoneCall size={18} className="mr-2" />
-            <span>DISPATCH EMS IMMEDIATELY (DON'T WAIT)</span>
+            <span>OPEN EMERGENCY OPTIONS</span>
           </button>
         </div>
 
@@ -157,13 +157,17 @@ export const AlertScreen: React.FC<AlertScreenProps> = ({
           )}
 
           <div className="mini-map-container mt-3">
-            <MapView
-              latitude={latitude}
-              longitude={longitude}
-              hospitals={nearestHospital ? [nearestHospital] : []}
-              height="130px"
-              zoom={14}
-            />
+            {latitude !== null && longitude !== null ? (
+              <MapView
+                latitude={latitude}
+                longitude={longitude}
+                hospitals={nearestHospital ? [nearestHospital] : []}
+                height="130px"
+                zoom={14}
+              />
+            ) : (
+              <p role="status" className="p-3 text-sm text-slate-300">Device location unavailable. No map coordinates are available for this alert.</p>
+            )}
           </div>
         </div>
       </div>

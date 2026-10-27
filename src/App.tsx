@@ -53,23 +53,6 @@ import {
 import { emergencyAudio } from './services/audioService';
 import { hardwareService } from './services/hardwareService';
 
-const INITIAL_CONTACTS: EmergencyContact[] = [
-  {
-    id: 'contact-1',
-    name: 'Sarah Mercer',
-    relationship: 'Spouse',
-    phone: '+1 (415) 555-0192',
-    isPrimary: true
-  },
-  {
-    id: 'contact-2',
-    name: 'Dr. Michael Chen',
-    relationship: 'Family Physician',
-    phone: '+1 (415) 555-8833',
-    isPrimary: false
-  }
-];
-
 export const App: React.FC = () => {
   // Navigation Tabs: Cockpit Navigation (Default), Sensors Telemetry, Hospitals, History, Settings
   const [currentTab, setCurrentTab] = useState<'navigation' | 'sensors' | 'hospitals' | 'history' | 'settings'>('navigation');
@@ -89,15 +72,24 @@ export const App: React.FC = () => {
 
   // Simulation & Device settings
   const [isSimulated, setIsSimulated] = useState<boolean>(sensorService.getIsSimulated());
+  const [sensorModeNotice, setSensorModeNotice] = useState<string>('Simulation is active. Enable device sensors explicitly to attempt real motion input.');
   const [activeScenario, setActiveScenario] = useState<SimulationScenario>('NONE');
   const [isMobileFrame, setIsMobileFrame] = useState<boolean>(true);
   const [showMLModal, setShowMLModal] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(emergencyAudio.getIsMuted());
 
   // Location & Hospitals
-  const [coords, setCoords] = useState<Coordinates>({ latitude: 37.7749, longitude: -122.4194 });
-  const [hospitals, setHospitals] = useState<Hospital[]>(DEFAULT_HOSPITALS);
-  const [contacts, setContacts] = useState<EmergencyContact[]>(INITIAL_CONTACTS);
+  const [coords, setCoords] = useState<Coordinates | null>(null);
+  const [locationError, setLocationError] = useState<string>('Location has not been acquired.');
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [contacts, setContacts] = useState<EmergencyContact[]>(() => {
+    try {
+      const saved = localStorage.getItem('accidentguard_emergency_contacts');
+      return saved ? (JSON.parse(saved) as EmergencyContact[]) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Map Engine & API Key State
   const [mapEngine, setMapEngine] = useState<MapEngine>(() => {
@@ -137,12 +129,17 @@ export const App: React.FC = () => {
 
   // Initialize GPS Coordinates and Hospitals
   useEffect(() => {
+    let active = true;
     getCurrentCoordinates().then((pos) => {
+      if (!active) return;
       setCoords(pos);
-      const sorted = getSortedHospitals(pos, DEFAULT_HOSPITALS);
-      setHospitals(sorted);
-      navigationService.setDestinationHospital(sorted[0]);
+      setLocationError('');
+    }).catch((error: unknown) => {
+      if (!active) return;
+      setCoords(null);
+      setLocationError(error instanceof Error ? error.message : 'Location unavailable.');
     });
+    return () => { active = false; };
   }, []);
 
   // Subscribe to Navigation & Driving Telemetry Updates
@@ -159,6 +156,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = sensorService.subscribe((point) => {
       setCurrentPoint(point);
+      setIsSimulated(sensorService.getIsSimulated());
       crashDetector.processSensorFrame(point);
     });
     return () => unsubscribe();
@@ -243,14 +241,22 @@ export const App: React.FC = () => {
 
   // Contacts management
   const handleAddContact = useCallback((c: EmergencyContact) => {
-    setContacts((prev) => [...prev, c]);
+    setContacts((prev) => {
+      const next = [...prev.filter((item) => item.id !== c.id), c];
+      localStorage.setItem('accidentguard_emergency_contacts', JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const handleDeleteContact = useCallback((id: string) => {
-    setContacts((prev) => prev.filter((c) => c.id !== id));
+    setContacts((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      localStorage.setItem('accidentguard_emergency_contacts', JSON.stringify(next));
+      return next;
+    });
   }, []);
 
-  const nearestHospital = hospitals[0] || DEFAULT_HOSPITALS[0];
+  const nearestHospital = hospitals[0] || null;
 
   // Helper status color and text badge (memoized to avoid re-computation on unrelated renders)
   const statusBadge = useMemo(() => {
@@ -368,36 +374,40 @@ export const App: React.FC = () => {
             {/* 1. COCKPIT NAVIGATION & GOOGLE MAPS HUD */}
             {currentTab === 'navigation' && (
               <div className="cockpit-view-content">
-                {/* Google Maps Style Navigation Map */}
+                {/* Show the map only after the device has supplied a real location. */}
                 <div className="cockpit-map-card">
-                  <MapView
-                    key={`map-nav-${mapKeyRevision}-${mapEngine}`}
-                    latitude={telemetry.currentLocation.latitude}
-                    longitude={telemetry.currentLocation.longitude}
-                    heading={telemetry.headingDeg}
-                    speedKmH={telemetry.currentSpeedKmH}
-                    hospitals={hospitals}
-                    roadAlerts={roadAlerts}
-                    routeCoordinates={DEFAULT_ROUTE_COORDINATES}
-                    height="320px"
-                    zoom={15}
-                    isCockpitMode={true}
-                    engine={mapEngine}
-                    onEngineToggle={handleSelectMapEngine}
-                    onOpenSettings={() => setCurrentTab('settings')}
-                  />
+                  {coords ? (
+                    <MapView
+                      key={`map-nav-${mapKeyRevision}-${mapEngine}`}
+                      latitude={coords.latitude}
+                      longitude={coords.longitude}
+                      heading={0}
+                      speedKmH={0}
+                      hospitals={[]}
+                      roadAlerts={[]}
+                      routeCoordinates={[]}
+                      height="320px"
+                      zoom={15}
+                      isCockpitMode={true}
+                      engine={mapEngine}
+                      onEngineToggle={handleSelectMapEngine}
+                      onOpenSettings={() => setCurrentTab('settings')}
+                    />
+                  ) : (
+                    <div role="status" className="p-5 text-sm text-slate-300">
+                      <h2 className="text-base font-semibold text-white">Current location unavailable</h2>
+                      <p className="mt-2">{locationError}</p>
+                      <p className="mt-2">Grant location permission and reload to show your position. Route distance, ETA, road name, traffic and vehicle speed are unavailable until a real provider supplies them.</p>
+                      <a className="inline-block mt-3 underline" href="https://www.google.com/maps" target="_blank" rel="noreferrer">Open Google Maps</a>
+                    </div>
+                  )}
                 </div>
 
-                {/* Speedometer, Road Speed Limits, and Active Road Alerts */}
-                <CockpitHUD
-                  telemetry={telemetry}
-                  activeAlert={activeRoadAlert}
-                  onAccelerate={() => navigationService.accelerate(10)}
-                  onBrake={() => navigationService.brake(15)}
-                  onCruise={() => navigationService.cruise()}
-                  onEmergencyStop={() => navigationService.emergencyStop()}
-                  onToggleUnits={() => navigationService.toggleUnits()}
-                />
+                <section className="p-4 rounded-xl border border-slate-700 bg-slate-900/60" aria-label="Navigation status">
+                  <h2 className="font-semibold text-white">Navigation provider not configured</h2>
+                  <p className="mt-2 text-sm text-slate-300">Live road routing is not currently connected. Route distance, ETA, speed limits, live traffic and road hazards are intentionally unavailable instead of simulated.</p>
+                  <p className="mt-2 text-xs text-amber-300">Crash detection is experimental and has not been safety-validated.</p>
+                </section>
 
                 {/* Quick Crash Simulator Launcher Bar */}
                 <div className="quick-sim-bar">
@@ -435,6 +445,37 @@ export const App: React.FC = () => {
             {/* 2. SENSORS & ACCELEROMETER TELEMETRY */}
             {currentTab === 'sensors' && (
               <div className="dashboard-view-content">
+                <section className="p-4 rounded-xl border border-slate-700 bg-slate-900/60" aria-label="Sensor source mode">
+                  <h2 className="font-semibold text-white">Sensor source</h2>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Current source: <strong>{isSimulated ? 'SIMULATION / TEST DATA' : 'DEVICE MOTION EVENTS'}</strong>
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">{sensorModeNotice}</p>
+                  <button
+                    type="button"
+                    className="toolbar-btn mt-3"
+                    onClick={() => {
+                      if (isSimulated) {
+                        setSensorModeNotice('Requesting motion permission. Real mode will activate only after a fresh device event is received.');
+                        void sensorService.requestHardwarePermissions().then((granted) => {
+                          if (!granted) {
+                            setSensorModeNotice('Motion permission or compatible sensors unavailable. Simulation remains active; crash detection is not automatic in this mode.');
+                            return;
+                          }
+                          setSensorModeNotice('Permission granted. Waiting for a fresh motion sample; simulation remains labelled until one arrives.');
+                        });
+                      } else {
+                        sensorService.setIsSimulated(true);
+                        setIsSimulated(true);
+                        setSensorModeNotice('Simulation is active. Values on the sensor graph are test data, not real telemetry.');
+                      }
+                    }}
+                  >
+                    {isSimulated ? 'Enable device sensors' : 'Switch to simulation mode'}
+                  </button>
+                  <p className="mt-2 text-xs text-amber-300">This prototype is not safety-certified. Browser sensor events may stop in the background.</p>
+                </section>
+
                 {/* Real-time Oscilloscope Waveform */}
                 <SensorGraph currentPoint={currentPoint} historyLimit={150} />
 
@@ -461,25 +502,29 @@ export const App: React.FC = () => {
                     <div>
                       <h2 className="text-sm font-bold text-white">Trauma Centers & EMS Coverage</h2>
                       <p className="text-xs text-slate-400">
-                        GPS: {coords.latitude.toFixed(4)}, {coords.longitude.toFixed(4)} (Accuracy ±12m)
+                        {coords ? `GPS: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)} (accuracy ±${Math.round(coords.accuracy ?? 0)}m)` : `GPS unavailable: ${locationError}`}
                       </p>
                     </div>
                     <span className="hospital-count-badge">{hospitals.length} Centers</span>
                   </div>
                 </div>
 
-                <MapView
-                  key={`map-hosp-${mapKeyRevision}-${mapEngine}`}
-                  latitude={coords.latitude}
-                  longitude={coords.longitude}
-                  hospitals={hospitals}
-                  roadAlerts={roadAlerts}
-                  height="260px"
-                  zoom={13}
-                  engine={mapEngine}
-                  onEngineToggle={handleSelectMapEngine}
-                  onOpenSettings={() => setCurrentTab('settings')}
-                />
+                {coords ? (
+                  <MapView
+                    key={`map-hosp-${mapKeyRevision}-${mapEngine}`}
+                    latitude={coords.latitude}
+                    longitude={coords.longitude}
+                    hospitals={[]}
+                    roadAlerts={[]}
+                    height="260px"
+                    zoom={13}
+                    engine={mapEngine}
+                    onEngineToggle={handleSelectMapEngine}
+                    onOpenSettings={() => setCurrentTab('settings')}
+                  />
+                ) : (
+                  <p role="status" className="p-4 text-sm text-slate-300">Location unavailable: {locationError}</p>
+                )}
 
                 <div className="nearby-hospitals-scroll mt-3">
                   {hospitals.map((hosp, idx) => (
@@ -594,10 +639,10 @@ export const App: React.FC = () => {
         <AlertScreen
           countdownSeconds={countdownRemaining}
           maxCountdownSeconds={thresholds.countdownDurationSec}
-          peakG={currentIncident?.peakG ?? 4.8}
-          peakGyro={currentIncident?.peakRotation ?? 280}
-          latitude={coords.latitude}
-          longitude={coords.longitude}
+          peakG={currentIncident?.peakG ?? 0}
+          peakGyro={currentIncident?.peakRotation ?? 0}
+          latitude={coords?.latitude ?? null}
+          longitude={coords?.longitude ?? null}
           nearestHospital={nearestHospital}
           onCancel={handleCancelAlert}
           onTriggerImmediateDispatch={handleTriggerImmediateDispatch}

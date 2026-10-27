@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, "improve/**"]
+    branches: [main, "improve/**", "rebuild/**"]
 
 concurrency:
   group: accident-guard-ci-${{ github.ref }}
@@ -70,10 +70,12 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         timeout-minutes: 18
         with:
-          api-level: 36
+          api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
           working-directory: android
           script: |
             set +e

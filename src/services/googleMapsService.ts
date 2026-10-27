@@ -92,6 +92,7 @@ export const GOOGLE_MAPS_COCKPIT_STYLE: google.maps.MapTypeStyle[] = [
 ];
 
 class GoogleMapsService {
+  private mapTilerSessionKey = '';
   private loadPromise: Promise<typeof google> | null = null;
   private isLoaded: boolean = false;
   private loadError: string | null = null;
@@ -144,12 +145,10 @@ class GoogleMapsService {
    * Retrieves MapTiler Cloud API Key (from localStorage, .env, or default)
    */
   public getMapTilerKey(): string {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('accidentguard_maptiler_api_key');
-      if (stored && stored.trim().length > 0) {
-        return stored.trim();
-      }
-    }
+    // Do not auto-load a persisted key: stale or invalid local keys were causing
+    // the invalid-key watermark to appear even when a public tile fallback exists.
+    // A user must explicitly enter/test a key in Settings during this session.
+    if (this.mapTilerSessionKey) return this.mapTilerSessionKey;
     const envKey = (import.meta as unknown as { env?: { VITE_MAPTILER_API_KEY?: string } }).env?.VITE_MAPTILER_API_KEY;
     return (envKey || '').trim();
   }
@@ -157,6 +156,7 @@ class GoogleMapsService {
   public saveMapTilerKey(key: string): void {
     if (typeof window !== 'undefined') {
       const trimmed = key.trim();
+      this.mapTilerSessionKey = trimmed;
       if (trimmed) {
         localStorage.setItem('accidentguard_maptiler_api_key', trimmed);
       } else {
@@ -166,6 +166,7 @@ class GoogleMapsService {
   }
 
   public clearMapTilerKey(): void {
+    this.mapTilerSessionKey = '';
     if (typeof window !== 'undefined') {
       localStorage.removeItem('accidentguard_maptiler_api_key');
     }

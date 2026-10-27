@@ -24,8 +24,8 @@ import {
 
 interface DispatchScreenProps {
   incident: IncidentRecord | null;
-  coords: Coordinates;
-  nearestHospital: Hospital;
+  coords: Coordinates | null;
+  nearestHospital: Hospital | null;
   contacts: EmergencyContact[];
   onResetToNormal: () => void;
 }
@@ -41,33 +41,33 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   const [voiceSpoken, setVoiceSpoken] = useState<boolean>(false);
   const [isVoiceMuted, setIsVoiceMuted] = useState<boolean>(false);
 
-  // Progressive simulated transmission steps to Hospital ER
+  // These steps document local preparation only; they are not a network transmission.
   const [transmissionSteps] = useState<DispatchTransmissionStatus[]>([
     {
       step: 1,
       title: 'Location available (permission dependent)',
-      detail: `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (Accuracy ±${coords.accuracy ?? 12}m)`,
+      detail: coords ? `${coords?.latitude.toFixed(6)}, ${coords?.longitude.toFixed(6)} (accuracy ±${coords?.accuracy ?? 'unknown'}m)` : 'Location unavailable; no coordinates will be included.',
       status: 'completed',
       timestamp: Date.now() - 3000
     },
     {
       step: 2,
       title: 'Impact telemetry prepared (not transmitted)',
-      detail: `Peak Impact: ${(incident?.peakG ?? 4.8).toFixed(1)}g • Rotational Velocity: ${incident?.peakRotation ?? 280}°/s`,
+      detail: `Recorded sensor reading: ${(incident?.peakG ?? 0).toFixed(1)}g • rotation ${incident?.peakRotation ?? 0}°/s (experimental; not validated).`,
       status: 'completed',
       timestamp: Date.now() - 2000
     },
     {
       step: 3,
       title: 'Emergency message prepared for user review',
-      detail: 'No hospital or emergency-service endpoint is connected in this prototype.',
+      detail: 'Message is only prepared for user review; no contact or emergency endpoint has been notified.',
       status: 'active',
       timestamp: Date.now() - 1000
     },
     {
       step: 4,
       title: 'No dispatch integration configured',
-      detail: 'No ambulance has been requested. Use verified local emergency channels in a real emergency.',
+      detail: 'No ambulance or emergency service has been contacted. Use verified local emergency channels in a real emergency.',
       status: 'pending',
       timestamp: Date.now()
     }
@@ -76,18 +76,18 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   const timestamp = incident?.timestamp ?? Date.now();
   const peakG = incident?.peakG ?? 0;
 
-  const smsPayload = generateEmergencySmsPayload({
-    userName: 'AccidentGuard demo user',
+  const smsPayload = coords ? generateEmergencySmsPayload({
+    userName: 'AccidentGuard user',
     coords,
     peakG,
-    nearestHospital,
+    nearestHospital: nearestHospital ?? { id: 'none', name: 'Not selected', address: '', latitude: coords.latitude, longitude: coords.longitude, phone: '', traumaLevel: 'Not verified' },
     timestamp
-  });
+  }) : { recipientNumbers: [], messageText: 'AccidentGuard incident draft. Device location is unavailable. No emergency service has been contacted.', mapsUrl: '' };
 
   // Demo draft only. No verified hospital recipient is configured.
   const smsHref = `sms:?body=${encodeURIComponent(smsPayload.messageText)}`;
-  const hasVerifiedHospitalPhone = Boolean(nearestHospital.phone && nearestHospital.phone.trim());
-  const googleMapsHref = `https://www.google.com/maps?q=${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}`;
+  const hasVerifiedHospitalPhone = Boolean(nearestHospital?.phone && nearestHospital?.phone.trim());
+  const googleMapsHref = coords ? `https://www.google.com/maps?q=${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}` : null;
 
   // Send Browser Web Notification & Speak Emergency Status
   useEffect(() => {
@@ -130,7 +130,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
         console.warn('Speech synthesis error:', err);
       }
     }
-  }, [peakG, nearestHospital.name, voiceSpoken, isVoiceMuted]);
+  }, [peakG, nearestHospital?.name ?? 'No verified facility selected', voiceSpoken, isVoiceMuted]);
 
   const handleCopy = () => {
     navigator.clipboard?.writeText(smsPayload.messageText).catch(() => {});
@@ -174,17 +174,17 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
       <div className="dispatch-hospital-card">
         <div className="hospital-header">
           <div className="hospital-info">
-            <span className="hospital-tag">{nearestHospital.traumaLevel}</span>
-            <h2 className="hospital-name">{nearestHospital.name}</h2>
+            <span className="hospital-tag">{nearestHospital?.traumaLevel ?? 'No verified facility selected'}</span>
+            <h2 className="hospital-name">{nearestHospital?.name ?? 'No verified facility selected'}</h2>
             <p className="hospital-address">
               <MapPin size={14} className="inline mr-1 text-slate-400" />
-              {nearestHospital.address}
+              {nearestHospital?.address ?? 'No verified facility data available'}
             </p>
           </div>
           <div className="hospital-eta-badge">
-            <span className="eta-num">{nearestHospital.etaMinutes ?? 4}</span>
+            <span className="eta-num">{nearestHospital?.etaMinutes ?? '—'}</span>
             <span className="eta-unit">MIN ETA</span>
-            <span className="distance-num">({nearestHospital.distanceKm} km away)</span>
+            <span className="distance-num">({nearestHospital?.distanceKm ?? '—'} km straight-line distance)</span>
           </div>
         </div>
 
@@ -201,12 +201,12 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
 
           {hasVerifiedHospitalPhone ? (
             <a
-              href={`tel:${nearestHospital.phone.replace(/[^0-9+]/g, '')}`}
+              href={`tel:${(nearestHospital?.phone ?? '').replace(/[^0-9+]/g, '')}`}
               className="action-btn direct-call-btn"
               id="btn-direct-call"
             >
               <PhoneCall size={18} />
-              <span>Call verified hospital ({nearestHospital.phone})</span>
+              <span>Call verified hospital ({nearestHospital?.phone ?? ''})</span>
             </a>
           ) : (
             <span className="action-btn direct-call-btn" aria-disabled="true">
@@ -216,39 +216,42 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
           )}
 
           <a
-            href={googleMapsHref}
+            href={googleMapsHref ?? undefined}
             target="_blank"
             rel="noopener noreferrer"
             className="action-btn google-maps-btn"
             id="btn-google-maps"
+            aria-disabled={!googleMapsHref}
+            onClick={(event) => { if (!googleMapsHref) event.preventDefault(); }}
           >
             <ExternalLink size={18} />
-            <span>View demonstration coordinates on Google Maps</span>
+            <span>{coords ? 'View current device coordinates on Google Maps' : 'Location unavailable'}</span>
           </a>
         </div>
       </div>
 
       {/* Interactive Map View with Incident Coordinates & Hospital */}
-      <div className="dispatch-map-wrapper">
+      {coords && <div className="dispatch-map-wrapper">
         <div className="dispatch-map-header">
           <div className="flex items-center space-x-2">
             <Radio size={16} className="text-cyan-400 animate-pulse" />
-            <span className="font-semibold text-white">Demo Location Preview — Not Emergency Routing</span>
+            <span className="font-semibold text-white">Location preview — not emergency routing</span>
           </div>
           <span className="text-xs text-slate-400">
-            Demo/current coordinates: {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
+            {coords ? `Current coordinates: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}` : 'Location unavailable — map not centered on current position'}
           </span>
         </div>
-        <MapView
+        {coords ? <MapView
           latitude={coords.latitude}
           longitude={coords.longitude}
-          hospitals={[nearestHospital]}
+          hospitals={nearestHospital ? [nearestHospital] : []}
           zoom={14}
           height="220px"
-        />
-      </div>
+        /> : <p role="status">Location unavailable. Grant location permission and retry to show the current position.</p>}
+      </div>}
+      {!coords && <p role="status">Location unavailable. Grant location permission and retry to show the current position.</p>}
 
-      {/* Real-time Hospital ER Telemetry Reception Progress */}
+      {/* Local incident preparation status — no dispatch backend */}
       <div className="dispatch-transmission-feed">
         <h3 className="section-title">
           <Shield size={16} className="text-emerald-400" />
@@ -302,7 +305,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
         </div>
         <pre className="sms-text-content">{smsPayload.messageText}</pre>
         <div className="sms-recipients-row">
-          <span className="recipients-label">Draft recipients (none pre-filled):</span>
+          <span className="recipients-label">Saved contacts (not automatically notified):</span>
           {smsPayload.recipientNumbers.map((num, idx) => (
             <span key={idx} className="recipient-pill">{num}</span>
           ))}
@@ -313,7 +316,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
       <div className="emergency-contacts-summary">
         <h3 className="section-title">
           <PhoneCall size={16} className="text-cyan-400" />
-          <span>Next of Kin & Primary Contacts</span>
+          <span>Emergency contacts (not automatically notified)</span>
         </h3>
         <div className="contacts-mini-grid">
           {contacts.map((c) => (
@@ -339,7 +342,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
           id="btn-reset-normal"
         >
           <RotateCcw size={16} />
-          <span>Reset System to Safe Monitoring Mode</span>
+          <span>Return to monitoring</span>
         </button>
       </div>
     </div>

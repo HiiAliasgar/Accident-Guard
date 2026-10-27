@@ -13,6 +13,9 @@ class SensorService {
   private isSimulated: boolean = true;
   private isHardwareAvailable: boolean = false;
   private hasPermission: boolean = false;
+  private hardwareListenerAttached: boolean = false;
+  private lastHardwareSampleAt: number = 0;
+  private readonly hardwareFreshnessMs = 2000;
 
   // Real sensor state cache
   private currentRawAccel = { x: 0, y: 0, z: 9.81 };
@@ -49,9 +52,9 @@ class SensorService {
   private checkHardwareSupport() {
     if (typeof window !== 'undefined' && 'DeviceMotionEvent' in window) {
       this.isHardwareAvailable = true;
-      // Default to simulator on desktop/laptops since real sensors won't produce crashes
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      this.isSimulated = !isMobile;
+      // Capability is not permission or proof of live samples. Always begin in simulation
+      // until the user explicitly enables hardware and a fresh event is received.
+      this.isSimulated = true;
     } else {
       this.isSimulated = true;
     }
@@ -66,15 +69,30 @@ class SensorService {
   }
 
   public setIsSimulated(sim: boolean): void {
-    this.isSimulated = sim;
-    if (!sim && !this.hasPermission) {
-      this.requestHardwarePermissions();
+    if (sim) {
+      this.isSimulated = true;
+      this.currentScenario = 'NONE';
+      return;
     }
+    // Keep the UI honest while the permission request is pending. Switch to hardware
+    // only after permission succeeds and fresh sensor events begin arriving.
+    this.isSimulated = true;
+    void this.requestHardwarePermissions().then((granted) => {
+      if (!granted) {
+        this.isSimulated = true;
+      }
+    });
   }
 
   public async requestHardwarePermissions(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
 
+    if (!('DeviceMotionEvent' in window) || typeof DeviceMotionEvent === 'undefined') {
+      this.isHardwareAvailable = false;
+      this.isSimulated = true;
+      return false;
+    }
+    this.isHardwareAvailable = true;
     // iOS 13+ requires explicit permission request
     const DeviceMotionEventWithPermission = DeviceMotionEvent as unknown as {
       requestPermission?: () => Promise<'granted' | 'denied'>;
@@ -101,7 +119,10 @@ class SensorService {
   }
 
   private attachHardwareListeners() {
+    if (this.hardwareListenerAttached) return;
+    this.hardwareListenerAttached = true;
     window.addEventListener('devicemotion', (event) => {
+      const receivedAt = Date.now();
       const acc = event.accelerationIncludingGravity || event.acceleration;
       if (acc) {
         // Convert to g (1g = 9.80665 m/s²)
@@ -118,6 +139,10 @@ class SensorService {
           beta: rot.beta || 0,
           gamma: rot.gamma || 0
         };
+      }
+      if (acc || rot) {
+        this.lastHardwareSampleAt = receivedAt;
+        this.isSimulated = false;
       }
     });
   }
@@ -205,7 +230,7 @@ class SensorService {
     let beta = 0;
     let gamma = 0;
 
-    if (!this.isSimulated && this.hasPermission) {
+    if (!this.isSimulated && this.hasPermission && this.lastHardwareSampleAt > 0 && now - this.lastHardwareSampleAt <= this.hardwareFreshnessMs) {
       // Read actual hardware
       x = this.currentRawAccel.x;
       y = this.currentRawAccel.y;
@@ -214,6 +239,8 @@ class SensorService {
       beta = this.currentRawGyro.beta;
       gamma = this.currentRawGyro.gamma;
     } else {
+      // No permission, unavailable hardware, or stale stream: fall back to clearly labelled simulation.
+      if (!this.isSimulated) this.isSimulated = true;
       // Physics Simulation Engine
       this.simTimeSec += 0.02;
       const elapsedScenarioSec = (now - this.scenarioStartTime) / 1000;

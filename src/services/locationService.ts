@@ -9,44 +9,8 @@ export interface Coordinates {
 
 // DEMO-ONLY hospital fixtures. These are not verified facilities or contact details.
 // Replace with a verified dataset for the actual launch region before any public release.
-export const DEFAULT_HOSPITALS: Hospital[] = [
-  {
-    id: 'demo-hosp-1',
-    name: 'DEMO ONLY — Hospital A (not verified)',
-    address: 'Demonstration location only — not a real facility',
-    latitude: 37.7558,
-    longitude: -122.4045,
-    phone: '',
-    traumaLevel: 'DEMO DATA — NOT AN EMERGENCY SERVICE'
-  },
-  {
-    id: 'demo-hosp-2',
-    name: 'DEMO ONLY — Hospital B (not verified)',
-    address: 'Demonstration location only — not a real facility',
-    latitude: 37.7631,
-    longitude: -122.4578,
-    phone: '',
-    traumaLevel: 'DEMO DATA — NOT AN EMERGENCY SERVICE'
-  },
-  {
-    id: 'demo-hosp-3',
-    name: 'DEMO ONLY — Hospital C (not verified)',
-    address: 'Demonstration location only — not a real facility',
-    latitude: 37.7905,
-    longitude: -122.4172,
-    phone: '',
-    traumaLevel: 'DEMO DATA — NOT AN EMERGENCY SERVICE'
-  },
-  {
-    id: 'demo-hosp-4',
-    name: 'DEMO ONLY — Hospital D (not verified)',
-    address: 'Demonstration location only — not a real facility',
-    latitude: 37.7854,
-    longitude: -122.4402,
-    phone: '',
-    traumaLevel: 'DEMO DATA — NOT AN EMERGENCY SERVICE'
-  }
-];
+// No default hospital data: only show facilities from a verified provider.
+export const DEFAULT_HOSPITALS: Hospital[] = [];
 
 // Earth radius in kilometers
 const EARTH_RADIUS_KM = 6371;
@@ -88,19 +52,17 @@ export function getSortedHospitals(
         hospital.latitude,
         hospital.longitude
       );
-      // Rough ETA estimate: assuming average emergency transit speed of 45 km/h in city
-      const etaMinutes = Math.max(3, Math.round((distance / 45) * 60) + 2);
+      // Road ETA is unavailable without a real routing provider.
       return {
         ...hospital,
-        distanceKm: distance,
-        etaMinutes
+        distanceKm: distance
       };
     })
     .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
 }
 
 /**
- * Retrieves the device's real GPS position or falls back to standard demo coordinates
+ * Retrieves the device's real GPS position. It rejects on errors and never fabricates coordinates.
  */
 export async function getCurrentCoordinates(): Promise<Coordinates> {
   return new Promise((resolve, reject) => {
@@ -145,14 +107,14 @@ export function generateEmergencySmsPayload(params: {
   const mapsUrl = `https://maps.google.com/?q=${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}`;
 
   const messageText =
-`[ACCIDENTGUARD DEMO — NOT A VERIFIED EMERGENCY ALERT]
-This is a demonstration draft from an experimental student prototype.
+`[ACCIDENTGUARD — EXPERIMENTAL ALERT DRAFT; NOT A DISPATCH SERVICE]
+This is a message draft from an experimental student prototype.
 Driver label: ${userName}
 Time: ${timeStr}
 Experimental sensor reading: ${peakG.toFixed(1)}g (not validated)
-Displayed coordinates: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (±${coords.accuracy ?? 10}m)
+Device coordinates: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (±${coords.accuracy ?? 10}m)
 Map link: ${mapsUrl}
-Displayed facility: ${nearestHospital.name}
+Facility context (unverified): ${nearestHospital.name}
 WARNING: No emergency service has been contacted. Verify all information and contact local emergency services directly in a real emergency.`;
 
   return {
