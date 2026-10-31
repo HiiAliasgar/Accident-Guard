@@ -56,16 +56,16 @@ import { hardwareService } from './services/hardwareService';
 const INITIAL_CONTACTS: EmergencyContact[] = [
   {
     id: 'contact-1',
-    name: 'Sarah Mercer',
-    relationship: 'Spouse',
-    phone: '+1 (415) 555-0192',
+    name: 'Demo contact (replace in Settings)',
+    relationship: 'Placeholder',
+    phone: '',
     isPrimary: true
   },
   {
     id: 'contact-2',
-    name: 'Dr. Michael Chen',
-    relationship: 'Family Physician',
-    phone: '+1 (415) 555-8833',
+    name: 'Demo contact (replace in Settings)',
+    relationship: 'Placeholder',
+    phone: '',
     isPrimary: false
   }
 ];
@@ -95,7 +95,7 @@ export const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState<boolean>(emergencyAudio.getIsMuted());
 
   // Location & Hospitals
-  const [coords, setCoords] = useState<Coordinates>({ latitude: 37.7749, longitude: -122.4194 });
+  const [coords, setCoords] = useState<Coordinates>({ latitude: 0, longitude: 0 });
   const [hospitals, setHospitals] = useState<Hospital[]>(DEFAULT_HOSPITALS);
   const [contacts, setContacts] = useState<EmergencyContact[]>(INITIAL_CONTACTS);
 
@@ -141,7 +141,11 @@ export const App: React.FC = () => {
       setCoords(pos);
       const sorted = getSortedHospitals(pos, DEFAULT_HOSPITALS);
       setHospitals(sorted);
-      navigationService.setDestinationHospital(sorted[0]);
+      if (sorted[0]) navigationService.setDestinationHospital(sorted[0]);
+    }).catch(() => {
+      // Keep location explicitly unavailable. Never substitute demo coordinates for GPS failure.
+      setCoords({ latitude: 0, longitude: 0 });
+      setHospitals(DEFAULT_HOSPITALS);
     });
   }, []);
 
@@ -209,7 +213,9 @@ export const App: React.FC = () => {
 
   // Immediate dispatch (skip countdown)
   const handleTriggerImmediateDispatch = useCallback(() => {
-    setStatus('DISPATCHED');
+    // Record the incident and resolve GPS before presenting the local alert preview.
+    // This prototype does not transmit a dispatch request.
+    crashDetector.confirmEmergencyImmediately();
   }, []);
 
   // Reset from dispatch back to normal
@@ -461,7 +467,7 @@ export const App: React.FC = () => {
                     <div>
                       <h2 className="text-sm font-bold text-white">Trauma Centers & EMS Coverage</h2>
                       <p className="text-xs text-slate-400">
-                        GPS: {coords.latitude.toFixed(4)}, {coords.longitude.toFixed(4)} (Accuracy ±12m)
+                        GPS: {coords.latitude === 0 && coords.longitude === 0 ? 'Unavailable' : `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)} (±${Math.round(coords.accuracy ?? 0)}m)`}
                       </p>
                     </div>
                     <span className="hospital-count-badge">{hospitals.length} Centers</span>
