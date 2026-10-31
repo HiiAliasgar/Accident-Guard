@@ -53,22 +53,7 @@ import {
 import { emergencyAudio } from './services/audioService';
 import { hardwareService } from './services/hardwareService';
 
-const INITIAL_CONTACTS: EmergencyContact[] = [
-  {
-    id: 'contact-1',
-    name: 'Demo contact (replace in Settings)',
-    relationship: 'Placeholder',
-    phone: '',
-    isPrimary: true
-  },
-  {
-    id: 'contact-2',
-    name: 'Demo contact (replace in Settings)',
-    relationship: 'Placeholder',
-    phone: '',
-    isPrimary: false
-  }
-];
+const INITIAL_CONTACTS: EmergencyContact[] = [];
 
 export const App: React.FC = () => {
   // Navigation Tabs: Cockpit Navigation (Default), Sensors Telemetry, Hospitals, History, Settings
@@ -287,7 +272,7 @@ export const App: React.FC = () => {
         return (
           <div className="status-pill danger">
             <span className="pulse-dot bg-red-500"></span>
-            <span>TRAUMA DISPATCH ACTIVE</span>
+            <span>ALERT PREVIEW ACTIVE — NO DISPATCH SENT</span>
           </div>
         );
     }
