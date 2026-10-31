@@ -199,7 +199,10 @@ export class CrashDetectionEngine {
           );
           // Evaluate variance strictly post-impact (excluding the impact shockwave itself)
           const postImpactMinTimestamp = this.impactTimestamp + 400;
-          const variance = this.calculateRingBufferVariance(windowSampleCount, postImpactMinTimestamp);
+          const minimumSamples = Math.floor(this.thresholds.stillnessDurationSec * 20);
+          const variance = this.ringCount < minimumSamples
+            ? Number.POSITIVE_INFINITY
+            : this.calculateRingBufferVariance(windowSampleCount, postImpactMinTimestamp);
 
           // Check if vehicle stopped (variance < stillnessVarianceG)
           const isStationary = variance <= this.thresholds.stillnessVarianceG;
