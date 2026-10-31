@@ -6,6 +6,8 @@ AccidentGuard is an experimental student project exploring smartphone motion sen
 
 ## Current status
 
+This is a research/demo prototype, not an emergency-response product. The reliability fixes in the `fix/accidentguard-reliability` branch improve sample-history integrity, require adequate sensor samples before stillness checks, make hardware sensor access opt-in, remove fabricated GPS fallbacks and placeholder emergency contacts, and ensure the manual alert-confirmation path records an incident. These changes do not validate crash-detection accuracy or enable real dispatch.
+
 - React, TypeScript, Vite, and Capacitor Android shell.
 - Experimental accelerometer/gyroscope crash-detection logic.
 - Foreground location and map display when permission is granted.

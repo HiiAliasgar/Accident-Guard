@@ -65,6 +65,26 @@ describe('CrashDetectionEngine', () => {
     expect(emergencyAudio.playImpactAlert).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects stillness confirmation when the sensor history has too few samples', () => {
+    const engine = new CrashDetectionEngine();
+    engine.processSensorFrame(frame(1000, 4.2, 300));
+    engine.processSensorFrame(frame(1500, 1, 0));
+    engine.processSensorFrame(frame(4100, 1, 0));
+    expect(engine.getState()).toBe('NORMAL');
+    expect(engine.getIncidentHistory()[0]?.classification).toBe('FALSE_ALARM_STILLNESS_FAILED');
+  });
+
+  it('records an immediate manual confirmation without claiming dispatch', async () => {
+    const engine = new CrashDetectionEngine();
+    engine.triggerManualCrashDemo();
+    engine.confirmEmergencyImmediately();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(engine.getState()).toBe('ALERT_TRIGGERED');
+    expect(engine.getIncidentHistory()[0]?.location).toMatchObject({ lat: 19, lng: 73 });
+    expect(engine.getIncidentHistory()[0]?.dispatchedTo).toEqual([]);
+  });
+
   it('cancels countdown, restores normal state and clears timer', () => {
     const engine = new CrashDetectionEngine({ countdownDurationSec: 15 });
     engine.triggerManualCrashDemo();
