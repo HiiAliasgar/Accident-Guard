@@ -244,7 +244,8 @@ export class CrashDetectionEngine {
         validCount++;
       }
     }
-    if (validCount < 2) return 0;
+    // Missing/insufficient samples must never be interpreted as zero movement.
+    if (validCount < Math.max(2, Math.floor(count * 0.8))) return Number.POSITIVE_INFINITY;
     const mean = sum / validCount;
 
     // Pass 2: compute sum of squared deviations in-place
@@ -301,10 +302,10 @@ export class CrashDetectionEngine {
       timestamp: Date.now(),
       peakG: this.peakGRecorded,
       peakRotation: this.peakGyroRecorded,
-      location: { lat: 37.7749, lng: -122.4194 },
+      location: { lat: 0, lng: 0 },
       classification: 'FALSE_ALARM_USER_CANCELLED',
       dispatchedTo: [],
-      notes: `Alert aborted by user pressing "I'm OK" during the ${this.thresholds.countdownDurationSec}s countdown window.`
+      notes: `Alert aborted by user pressing "I'm OK" during the ${this.thresholds.countdownDurationSec}s countdown window. Location was not captured for this record.`
     };
     this.incidentHistory.unshift(cancelledRecord);
     this.setState('NORMAL', cancelledRecord);
@@ -365,6 +366,18 @@ export class CrashDetectionEngine {
   /**
    * Manual trigger for demonstration / testing purposes
    */
+  /** Confirm an active alert immediately and still create an incident record.
+   * This changes local prototype state only; it does not contact emergency services.
+   */
+  public confirmEmergencyImmediately(): void {
+    if (this.countdownTimerId !== null) {
+      clearInterval(this.countdownTimerId);
+      this.countdownTimerId = null;
+    }
+    emergencyAudio.stopSiren();
+    void this.finishCountdownAndTriggerAlert();
+  }
+
   public triggerManualCrashDemo(): void {
     this.impactTimestamp = Date.now();
     this.peakGRecorded = 4.8;
@@ -384,7 +397,7 @@ export class CrashDetectionEngine {
       location: { lat: 37.7749, lng: -122.4194 },
       classification: 'FALSE_ALARM_STILLNESS_FAILED',
       dispatchedTo: [],
-      notes: `Impact of ${this.peakGRecorded.toFixed(1)}g detected, but post-impact movement variance (${variance.toFixed(2)}g) indicated continued device handling or motion. False alarm dismissed.`
+      notes: `Impact of ${this.peakGRecorded.toFixed(1)}g detected, but post-impact movement variance (${Number.isFinite(variance) ? variance.toFixed(2) : 'unavailable'}g) did not establish stillness. False alarm dismissed. Location is unavailable until a GPS fix is obtained.`
     };
 
     // Non-blocking GPS update for the record
