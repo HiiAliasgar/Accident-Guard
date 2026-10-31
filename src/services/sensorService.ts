@@ -51,7 +51,6 @@ class SensorService {
     if (typeof window !== 'undefined' && 'DeviceMotionEvent' in window) {
       this.isHardwareAvailable = true;
       // Default to simulator on desktop/laptops since real sensors won't produce crashes
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       // Hardware collection is opt-in; never label simulated samples as live telemetry.
       this.isSimulated = true;
     } else {
