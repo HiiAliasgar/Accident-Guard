@@ -11,6 +11,7 @@ class SensorService {
   private callbacks: Set<SensorCallback> = new Set();
   private timerId: number | null = null;
   private isSimulated: boolean = true;
+  private hardwareListenerAttached: boolean = false;
   private isHardwareAvailable: boolean = false;
   private hasPermission: boolean = false;
 
@@ -51,7 +52,8 @@ class SensorService {
       this.isHardwareAvailable = true;
       // Default to simulator on desktop/laptops since real sensors won't produce crashes
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      this.isSimulated = !isMobile;
+      // Hardware collection is opt-in; never label simulated samples as live telemetry.
+      this.isSimulated = true;
     } else {
       this.isSimulated = true;
     }
@@ -66,10 +68,14 @@ class SensorService {
   }
 
   public setIsSimulated(sim: boolean): void {
-    this.isSimulated = sim;
-    if (!sim && !this.hasPermission) {
-      this.requestHardwarePermissions();
+    if (sim) {
+      this.isSimulated = true;
+      return;
     }
+    // Switch to hardware only after permission succeeds; otherwise keep simulation explicit.
+    void this.requestHardwarePermissions().then((granted) => {
+      this.isSimulated = !granted;
+    });
   }
 
   public async requestHardwarePermissions(): Promise<boolean> {
@@ -101,6 +107,8 @@ class SensorService {
   }
 
   private attachHardwareListeners() {
+    if (this.hardwareListenerAttached) return;
+    this.hardwareListenerAttached = true;
     window.addEventListener('devicemotion', (event) => {
       const acc = event.accelerationIncludingGravity || event.acceleration;
       if (acc) {
@@ -353,7 +361,9 @@ class SensorService {
     s.beta = round1(beta);
     s.gamma = round1(gamma);
     s.rotationMagnitude = round1(rotationMagnitude);
-    return s;
+    // Consumers retain samples in history. Return an immutable snapshot: the reused hot-loop
+    // object would otherwise be overwritten on every tick and corrupt the detector's buffer.
+    return { ...s };
   }
 }
 
