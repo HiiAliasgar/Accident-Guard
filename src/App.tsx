@@ -450,7 +450,7 @@ export const App: React.FC = () => {
                 <section className="p-4 rounded-xl border border-slate-700 bg-slate-900/60" aria-label="Sensor source mode">
                   <h2 className="font-semibold text-white">Sensor source</h2>
                   <p className="mt-1 text-sm text-slate-300">
-                    Current source: <strong>{isSimulated ? 'SIMULATION / TEST DATA' : 'DEVICE MOTION EVENTS'}</strong>
+                    Current source: <strong>{isSimulated ? 'SIMULATION / TEST DATA' : 'DEVICE SENSOR STREAM'}</strong>
                   </p>
                   <p className="mt-1 text-sm text-slate-300">{sensorModeNotice}</p>
                   <button
@@ -458,13 +458,13 @@ export const App: React.FC = () => {
                     className="toolbar-btn mt-3"
                     onClick={() => {
                       if (isSimulated) {
-                        setSensorModeNotice('Requesting motion permission. Real mode will activate only after a fresh device event is received.');
+                        setSensorModeNotice('Starting the device sensor stream. Hardware mode activates only after a fresh accelerometer reading is received.');
                         void sensorService.requestHardwarePermissions().then((granted) => {
                           if (!granted) {
-                            setSensorModeNotice('Motion permission or compatible sensors unavailable. Simulation remains active; crash detection is not automatic in this mode.');
+                            setSensorModeNotice('Native sensor bridge unavailable or accelerometer missing. Simulation remains active; live crash monitoring is unavailable.');
                             return;
                           }
-                          setSensorModeNotice('Permission granted. Waiting for a fresh motion sample; simulation remains labelled until one arrives.');
+                          setSensorModeNotice('Sensor stream started. Waiting for a fresh hardware sample; simulation remains labelled until one arrives.');
                         });
                       } else {
                         sensorService.setIsSimulated(true);
@@ -475,7 +475,7 @@ export const App: React.FC = () => {
                   >
                     {isSimulated ? 'Enable device sensors' : 'Switch to simulation mode'}
                   </button>
-                  <p className="mt-2 text-xs text-amber-300">This prototype is not safety-certified. Browser sensor events may stop in the background.</p>
+                  <p className="mt-2 text-xs text-amber-300">Experimental only: this native bridge runs while the app process is active. Background monitoring needs a separately validated Android foreground service.</p>
                 </section>
 
                 {/* Real-time Oscilloscope Waveform */}
