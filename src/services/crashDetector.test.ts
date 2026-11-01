@@ -65,6 +65,42 @@ describe('CrashDetectionEngine', () => {
     expect(emergencyAudio.playImpactAlert).toHaveBeenCalledTimes(1);
   });
 
+  it('does not claim emergency dispatch when a candidate is confirmed immediately', async () => {
+    const engine = new CrashDetectionEngine();
+    engine.triggerManualCrashDemo();
+    engine.confirmEmergencyImmediately();
+
+    await Promise.resolve();
+
+    expect(engine.getState()).toBe('ALERT_TRIGGERED');
+    expect(engine.getIncidentHistory()[0]?.dispatchedTo).toEqual([]);
+    expect(engine.getIncidentHistory()[0]?.notes).toContain('No emergency service');
+  });
+
+  it('resets the incident state without deleting history', async () => {
+    const engine = new CrashDetectionEngine();
+    engine.triggerManualCrashDemo();
+    engine.confirmEmergencyImmediately();
+    await Promise.resolve();
+
+    const historyLength = engine.getIncidentHistory().length;
+    engine.resetAfterIncident();
+
+    expect(engine.getState()).toBe('NORMAL');
+    expect(engine.getIncidentHistory()).toHaveLength(historyLength);
+  });
+
+  it('does not treat an incomplete post-impact window as a rejected event', () => {
+    const engine = new CrashDetectionEngine({ stillnessDurationSec: 1 });
+    engine.processSensorFrame(frame(1000, 4.2, 250));
+    engine.processSensorFrame(frame(1200, 1, 0));
+    engine.processSensorFrame(frame(1399, 1, 0));
+    engine.processSensorFrame(frame(2100, 1, 0));
+
+    expect(engine.getState()).toBe('CONFIRMING');
+    expect(engine.getIncidentHistory()).toHaveLength(0);
+  });
+
   it('cancels countdown, restores normal state and clears timer', () => {
     const engine = new CrashDetectionEngine({ countdownDurationSec: 15 });
     engine.triggerManualCrashDemo();
