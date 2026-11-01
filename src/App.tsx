@@ -205,16 +205,18 @@ export const App: React.FC = () => {
     crashDetector.cancelAlarmByUser();
   }, []);
 
-  // Immediate dispatch (skip countdown)
+  // Open emergency review immediately. This records a local incident; it does not dispatch.
   const handleTriggerImmediateDispatch = useCallback(() => {
-    setStatus('DISPATCHED');
+    crashDetector.confirmEmergencyImmediately();
   }, []);
 
-  // Reset from dispatch back to normal
+  // Reset both the UI and detector state; retain the incident history.
   const handleResetToNormal = useCallback(() => {
+    crashDetector.resetAfterIncident();
     setStatus('NORMAL');
     setCurrentIncident(null);
-  }, []);
+    setCountdownRemaining(thresholds.countdownDurationSec);
+  }, [thresholds.countdownDurationSec]);
 
   // Audio mute toggle (functional updater avoids isMuted dependency)
   const handleToggleMute = useCallback(() => {
@@ -287,7 +289,7 @@ export const App: React.FC = () => {
         return (
           <div className="status-pill danger">
             <span className="pulse-dot bg-red-500"></span>
-            <span>TRAUMA DISPATCH ACTIVE</span>
+            <span>POTENTIAL CRASH RECORDED — NO DISPATCH</span>
           </div>
         );
     }
