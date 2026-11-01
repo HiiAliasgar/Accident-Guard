@@ -77,6 +77,7 @@ export class CrashDetectionEngine {
   private countdownRemaining: number = 15;
   private countdownTimerId: number | null = null;
   private isFinalizingIncident = false;
+  private incidentGeneration = 0;
 
   // Event callbacks
   private onStateChangeListeners: Set<StateChangeCallback> = new Set();
@@ -289,6 +290,33 @@ export class CrashDetectionEngine {
     }, 1000);
   }
 
+  /** Confirm a candidate immediately for the emergency review screen.
+   * This records a local incident only; it does not contact emergency services.
+   */
+  public confirmEmergencyImmediately(): void {
+    if (this.currentState !== 'IMPACT_DETECTED' && this.currentState !== 'CONFIRMING') return;
+    void this.finishCountdownAndTriggerAlert();
+  }
+
+  /** Reset detector state after the user has reviewed an incident. History is retained. */
+  public resetAfterIncident(): void {
+    this.incidentGeneration += 1;
+    if (this.countdownTimerId !== null) {
+      clearInterval(this.countdownTimerId);
+      this.countdownTimerId = null;
+    }
+    emergencyAudio.stopSiren();
+    this.isFinalizingIncident = false;
+    this.countdownRemaining = this.thresholds.countdownDurationSec;
+    this.impactTimestamp = 0;
+    this.peakGRecorded = 0;
+    this.peakGyroRecorded = 0;
+    this.ringBuffer.fill(null);
+    this.ringHead = 0;
+    this.ringCount = 0;
+    this.setState('NORMAL');
+  }
+
   /**
    * User pressed "I'M OK - CANCEL"
    */
@@ -300,6 +328,7 @@ export class CrashDetectionEngine {
     emergencyAudio.stopSiren();
     emergencyAudio.playCancelChime();
 
+    this.incidentGeneration += 1;
     this.countdownRemaining = this.thresholds.countdownDurationSec;
     this.isFinalizingIncident = false;
     const cancelledRecord: IncidentRecord = {
@@ -324,6 +353,7 @@ export class CrashDetectionEngine {
     // The countdown callback and immediate-confirm action can race. Finalize once.
     if (this.isFinalizingIncident || this.currentState === 'ALERT_TRIGGERED' || this.currentState === 'DISPATCHED') return;
     this.isFinalizingIncident = true;
+    const generation = ++this.incidentGeneration;
     if (this.countdownTimerId !== null) {
       clearInterval(this.countdownTimerId);
       this.countdownTimerId = null;
@@ -333,7 +363,9 @@ export class CrashDetectionEngine {
     let coords;
     try {
       coords = await getCurrentCoordinates();
+      if (generation !== this.incidentGeneration) return;
     } catch {
+      if (generation !== this.incidentGeneration) return;
       // Do not present guessed/demo coordinates as a live accident location.
       const locationUnavailableRecord: IncidentRecord = {
         id: `incident-${Date.now()}`,
