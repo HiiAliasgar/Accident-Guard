@@ -48,7 +48,7 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
               <span className="node-arrow">→ 0.4s window →</span>
               <div className="state-node confirming">
                 <span className="node-title">CONFIRMING</span>
-                <span className="node-desc">Stillness variance &lt; 0.25g + Gyro &gt; 180°/s</span>
+                <span className="node-desc">Stillness variance &lt; 0.25 g² + gyro peak threshold</span>
               </div>
               <span className="node-arrow">→ Stillness verified →</span>
               <div className="state-node danger">
@@ -77,7 +77,7 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
                 <span className="math-title">Angular Velocity Tumbling Norm:</span>
                 <code className="math-formula">||ω|| = √(α² + β² + γ²)</code>
                 <p className="math-explain">
-                  Tracks 3D rotational kinetic energy. Distinguishes planar impacts from multi-axis tumbling and roll dynamics.
+                  Measures the magnitude of device-relative angular velocity. Phone mounting and orientation are not calibrated, so this is not a reliable vehicle-rollover measurement.
                 </p>
               </div>
 
@@ -85,7 +85,7 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
                 <span className="math-title">Post-Impact Stillness Variance:</span>
                 <code className="math-formula">Var(a) = (1/N) ∑(||a_i|| - μ)²</code>
                 <p className="math-explain">
-                  Over a 3.0s sliding window (N=150 samples @ 50Hz). If Var &lt; 0.25g, low motion is observed in the sampled window; this is not proof of a crash or vehicle immobilisation.
+                  Over a post-impact window. The calculated variance has units g² (not g). Low variance means acceleration magnitude changed little in the sampled window; it does not prove a crash or vehicle immobilisation.
                 </p>
               </div>
 
@@ -93,7 +93,7 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
                 <span className="math-title">Great-Circle Trauma Routing (Haversine):</span>
                 <code className="math-formula">d = 2R · arcsin(√(sin²(Δφ/2) + cos φ₁ cos φ₂ sin²(Δλ/2)))</code>
                 <p className="math-explain">
-                  Calculates straight-line distance to configured coordinates. Current hospital entries are demo fixtures, not verified facilities.
+                  Calculates straight-line distance only. No hospital provider or verified facility records are currently configured.
                 </p>
               </div>
             </div>
@@ -122,12 +122,12 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
                   </tr>
                   <tr>
                     <td><strong>False Positive Rejection</strong></td>
-                    <td>Rejects phone drops using stillness window &amp; gyro threshold</td>
+                    <td>Applies an experimental stillness and gyro heuristic; cannot reliably distinguish phone drops, potholes or crashes</td>
                     <td>Not implemented; requires labeled crash and non-crash data plus held-out evaluation</td>
                   </tr>
                   <tr>
                     <td><strong>Edge Inference Latency</strong></td>
-                    <td>&lt; 0.5 ms (zero CPU overhead, battery efficient)</td>
+                    <td>Not benchmarked; runtime latency and battery impact have not been measured</td>
                     <td>Not measured; depends on model, device, and runtime</td>
                   </tr>
                   <tr>
@@ -150,7 +150,7 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
               <li>
                 <CheckCircle2 size={16} className="text-emerald-400 mr-2 flex-shrink-0" />
                 <span>
-                  <strong>Dataset Sourcing:</strong> Combine public automotive crash telemetry (NHTSA Vehicle Crash Test Database, UTD-MHAD, SHRP2 Naturalistic Driving Study) with synthetic data augmentation (jittering, time-warping, orientation permutation).
+                  <strong>Dataset Sourcing:</strong> Acquire a properly labeled crash and non-crash sensor dataset with device placement, vehicle type and phone orientation metadata. No validated dataset is currently integrated.
                 </span>
               </li>
               <li>
