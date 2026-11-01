@@ -1,4 +1,4 @@
-// Main Application Shell for AccidentGuard: Google Maps Navigation, Road Speed & Hazards HUD, and Direct Hospital Dispatch
+// Main Application Shell for AccidentGuard: navigation, road telemetry, and emergency alert review
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   SystemStatus, 
