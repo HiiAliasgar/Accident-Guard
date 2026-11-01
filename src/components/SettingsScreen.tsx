@@ -277,7 +277,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               </span>
             </div>
             <p className="slider-subtext">
-              Abort window before dispatching coordinates and simulated SMS.
+              Abort window before recording a local incident. No SMS is sent automatically.
             </p>
             <input
               type="range"
@@ -341,7 +341,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {activeTab === 'contacts' && (
         <div className="tab-pane-content">
           <div className="contacts-action-bar mb-3">
-            <span className="text-sm font-semibold text-slate-200">Notified in Emergency:</span>
+            <span className="text-sm font-semibold text-slate-200">Saved emergency contacts:</span>
             <button
               type="button"
               className="add-contact-btn"
