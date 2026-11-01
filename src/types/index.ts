@@ -5,7 +5,7 @@ export type SystemStatus =
   | 'IMPACT_DETECTED'  // High G spike above threshold detected
   | 'CONFIRMING'       // Post-impact stillness & orientation verification window
   | 'ALERT_TRIGGERED'  // Emergency countdown finished without cancellation
-  | 'DISPATCHED';      // Emergency SMS & Call intent sent to trauma dispatch
+  | 'DISPATCHED';      // Legacy UI state; never means a delivery was verified
 
 export interface SensorDataPoint {
   timestamp: number;
