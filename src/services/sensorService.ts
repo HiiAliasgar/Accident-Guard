@@ -257,6 +257,8 @@ class SensorService {
     this.currentScenario = scenario;
     this.scenarioStartTime = Date.now();
     this.isSimulated = true;
+    // Explicit test scenarios must not be mixed with live Android sensor frames.
+    void this.stopNativeSensorStream();
 
     // Burst mode optimization: when an impact occurs, upsample to 60Hz for maximum resolution
     if (this.isAdaptiveSampling) {
