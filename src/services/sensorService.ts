@@ -40,6 +40,7 @@ class SensorService {
   private nativeSensorListener: PluginListenerHandle | null = null;
   private nativeSensorStarted = false;
   private lastHardwareSampleAt: number = 0;
+  private lastGyroSampleAt: number = 0;
   private readonly hardwareFreshnessMs = 2000;
 
   // Real sensor state cache
@@ -119,6 +120,7 @@ class SensorService {
               beta: frame.beta,
               gamma: frame.gamma
             };
+            this.lastGyroSampleAt = Date.now();
             this.lastHardwareSampleAt = Date.now();
             this.isSimulated = false;
           });
@@ -130,6 +132,7 @@ class SensorService {
         this.hasPermission = status.accelerometerAvailable;
         if (!status.accelerometerAvailable) {
           this.isSimulated = true;
+          await this.stopNativeSensorStream();
           return false;
         }
         // Do not label the stream as hardware until the first valid native frame arrives.
@@ -140,6 +143,12 @@ class SensorService {
         this.isSimulated = true;
         this.hasPermission = false;
         this.isHardwareAvailable = false;
+        if (this.nativeSensorStarted) {
+          await this.stopNativeSensorStream();
+        } else {
+          this.nativeSensorListener?.remove();
+          this.nativeSensorListener = null;
+        }
         return false;
       }
     }
@@ -208,6 +217,7 @@ class SensorService {
           beta: rot.beta || 0,
           gamma: rot.gamma || 0
         };
+        this.lastGyroSampleAt = receivedAt;
       }
       if (acc || rot) {
         this.lastHardwareSampleAt = receivedAt;
@@ -307,9 +317,10 @@ class SensorService {
       x = this.currentRawAccel.x;
       y = this.currentRawAccel.y;
       z = this.currentRawAccel.z;
-      alpha = this.currentRawGyro.alpha;
-      beta = this.currentRawGyro.beta;
-      gamma = this.currentRawGyro.gamma;
+      const gyroIsFresh = this.lastGyroSampleAt > 0 && now - this.lastGyroSampleAt <= 250;
+      alpha = gyroIsFresh ? this.currentRawGyro.alpha : 0;
+      beta = gyroIsFresh ? this.currentRawGyro.beta : 0;
+      gamma = gyroIsFresh ? this.currentRawGyro.gamma : 0;
     } else {
       // No permission, unavailable hardware, or stale stream: fall back to clearly labelled simulation.
       if (!this.isSimulated) this.isSimulated = true;
