@@ -76,6 +76,7 @@ export class CrashDetectionEngine {
   // Countdown timer tracking
   private countdownRemaining: number = 15;
   private countdownTimerId: number | null = null;
+  private isFinalizingIncident = false;
 
   // Event callbacks
   private onStateChangeListeners: Set<StateChangeCallback> = new Set();
@@ -129,7 +130,8 @@ export class CrashDetectionEngine {
    */
   public processSensorFrame(point: SensorDataPoint) {
     // 1. Insert into circular ring buffer (O(1) complexity, zero heap allocation)
-    this.ringBuffer[this.ringHead] = point;
+    // Snapshot each frame: sensor services may reuse mutable objects in future implementations.
+    this.ringBuffer[this.ringHead] = { ...point };
     this.ringHead = (this.ringHead + 1) % this.bufferCapacity;
     if (this.ringCount < this.bufferCapacity) {
       this.ringCount++;
@@ -206,11 +208,14 @@ export class CrashDetectionEngine {
           // Check if gyro registered meaningful tumbling or if impact was high enough to warrant confirmation
           const registeredTumble = this.peakGyroRecorded >= (this.thresholds.gyroTumbleThresholdDegPerSec * 0.7);
 
+          // Insufficient samples are not evidence of stillness or of a false alarm.
+          // Keep collecting until a complete post-impact window is available.
+          if (!Number.isFinite(variance)) break;
+
           if (isStationary && registeredTumble) {
-            // High confidence crash detected -> Start Countdown
+            // Experimental crash candidate -> user confirmation countdown.
             this.startEmergencyCountdown();
           } else {
-            // False positive rejection! (User dropped phone and picked it up, or continued motion)
             this.recordRejectedIncident(variance);
           }
         }
@@ -230,7 +235,7 @@ export class CrashDetectionEngine {
    * Uses two-pass algorithm: first pass computes mean, second computes sum-of-squared-diffs.
    */
   private calculateRingBufferVariance(count: number, minTimestamp?: number): number {
-    if (count < 2) return 0;
+    if (count < 2) return Number.NaN;
 
     // Pass 1: compute mean in-place
     let sum = 0;
@@ -244,7 +249,7 @@ export class CrashDetectionEngine {
         validCount++;
       }
     }
-    if (validCount < 2) return 0;
+    if (validCount < 2) return Number.NaN;
     const mean = sum / validCount;
 
     // Pass 2: compute sum of squared deviations in-place
@@ -296,15 +301,17 @@ export class CrashDetectionEngine {
     emergencyAudio.playCancelChime();
 
     this.countdownRemaining = this.thresholds.countdownDurationSec;
+    this.isFinalizingIncident = false;
     const cancelledRecord: IncidentRecord = {
       id: `event-${Date.now()}`,
       timestamp: Date.now(),
       peakG: this.peakGRecorded,
       peakRotation: this.peakGyroRecorded,
-      location: { lat: 37.7749, lng: -122.4194 },
+      // Zero coordinates mean unavailable; never substitute a demo city.
+      location: { lat: 0, lng: 0 },
       classification: 'FALSE_ALARM_USER_CANCELLED',
       dispatchedTo: [],
-      notes: `Alert aborted by user pressing "I'm OK" during the ${this.thresholds.countdownDurationSec}s countdown window.`
+      notes: `Alert aborted by user pressing "I'm OK" during the ${this.thresholds.countdownDurationSec}s countdown window. Location was not captured for this cancelled event.`
     };
     this.incidentHistory.unshift(cancelledRecord);
     this.setState('NORMAL', cancelledRecord);
@@ -314,6 +321,9 @@ export class CrashDetectionEngine {
    * Countdown elapsed without user cancellation: lock location and dispatch
    */
   private async finishCountdownAndTriggerAlert() {
+    // The countdown callback and immediate-confirm action can race. Finalize once.
+    if (this.isFinalizingIncident || this.currentState === 'ALERT_TRIGGERED' || this.currentState === 'DISPATCHED') return;
+    this.isFinalizingIncident = true;
     if (this.countdownTimerId !== null) {
       clearInterval(this.countdownTimerId);
       this.countdownTimerId = null;
@@ -351,11 +361,13 @@ export class CrashDetectionEngine {
         lat: coords.latitude,
         lng: coords.longitude,
         accuracy: coords.accuracy,
-        address: nearestHospital.address
+        ...(nearestHospital ? { address: nearestHospital.address } : {})
       },
       classification: this.peakGyroRecorded > 300 ? 'ROLLOVER' : 'SEVERE_COLLISION',
-      dispatchedTo: [nearestHospital.name, nearestHospital.phone, '+1 (555) 911-0199'],
-      notes: `Critical impact verified (${this.peakGRecorded.toFixed(1)}g). Automated emergency response initiated.`
+      // This prototype does not contact emergency services. Never fabricate recipients
+      // or claim that dispatch occurred merely because a local incident was recorded.
+      dispatchedTo: [],
+      notes: `Potential crash candidate recorded (${this.peakGRecorded.toFixed(1)}g). GPS location captured. No emergency service or contact was automatically notified by this prototype.`
     };
 
     this.incidentHistory.unshift(incident);
@@ -381,16 +393,12 @@ export class CrashDetectionEngine {
       timestamp: this.impactTimestamp,
       peakG: this.peakGRecorded,
       peakRotation: this.peakGyroRecorded,
-      location: { lat: 37.7749, lng: -122.4194 },
+      // Location is deliberately unavailable here rather than a fabricated San Francisco fix.
+      location: { lat: 0, lng: 0 },
       classification: 'FALSE_ALARM_STILLNESS_FAILED',
       dispatchedTo: [],
-      notes: `Impact of ${this.peakGRecorded.toFixed(1)}g detected, but post-impact movement variance (${variance.toFixed(2)}g) indicated continued device handling or motion. False alarm dismissed.`
+      notes: `Impact of ${this.peakGRecorded.toFixed(1)}g detected, but post-impact movement variance (${variance.toFixed(2)}g²) did not satisfy the experimental confirmation rule. Event rejected. Location was not captured.`
     };
-
-    // Non-blocking GPS update for the record
-    getCurrentCoordinates().then((coords) => {
-      rejectedRecord.location = { lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy };
-    }).catch(() => { /* keep fallback coords */ });
 
     this.incidentHistory.unshift(rejectedRecord);
     this.setState('NORMAL', rejectedRecord);
