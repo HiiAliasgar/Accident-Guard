@@ -30,8 +30,8 @@ export interface DetectionThresholds {
   impactThresholdG: number;
   // Post-impact stillness confirmation duration in seconds (default: 3.0s)
   stillnessDurationSec: number;
-  // Movement threshold (g variance) below which the device is considered stationary (default: 0.25g)
-  stillnessVarianceG: number;
+  // Variance threshold in squared-g units (g²), not acceleration in g (default: 0.25 g²)
+  stillnessVarianceG2: number;
   // Minimum gyroscope angular velocity (deg/s) during impact to confirm vehicular tumbling (default: 180 deg/s)
   gyroTumbleThresholdDegPerSec: number;
   // Pre-alert countdown window in seconds (default: 15s)
