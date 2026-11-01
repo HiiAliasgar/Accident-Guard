@@ -3357,3 +3357,218 @@ button, a, input, select {
     padding: 12px 14px;
   }
 }
+
+
+/* ==========================================================================
+   AccidentGuard 2.1 — dashboard refinement
+   ========================================================================== */
+.dashboard-welcome {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 20px;
+  margin: 2px 0 14px;
+  overflow: hidden;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 88% 15%, rgba(14, 165, 233, 0.22), transparent 38%),
+    linear-gradient(135deg, #17243a 0%, #101827 55%, #0d1727 100%);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+}
+.dashboard-welcome::after {
+  content: "";
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  right: -72px;
+  bottom: -100px;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 50%;
+  box-shadow: 0 0 0 18px rgba(125, 211, 252, 0.035), 0 0 0 38px rgba(125, 211, 252, 0.025);
+  pointer-events: none;
+}
+.dashboard-welcome-copy { min-width: 0; position: relative; z-index: 1; }
+.dashboard-eyebrow {
+  display: block;
+  color: #7dd3fc;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1.5;
+}
+.dashboard-welcome h2 {
+  margin-top: 12px;
+  color: #f8fafc;
+  font-size: clamp(1.65rem, 7vw, 2.2rem);
+  line-height: 1.04;
+  letter-spacing: -0.055em;
+  font-weight: 850;
+}
+.dashboard-welcome h2 em { color: #67e8f9; font-style: normal; }
+.dashboard-welcome p {
+  max-width: 280px;
+  margin-top: 12px;
+  color: #b8c6d9;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.dashboard-mode {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: 999px;
+  font-size: 0.57rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.dashboard-mode.mode-demo { color: #fcd34d; background: rgba(245, 158, 11, 0.13); border: 1px solid rgba(245, 158, 11, 0.32); }
+.dashboard-mode.mode-device { color: #6ee7b7; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.32); }
+.dashboard-mode-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 24px;
+}
+.dashboard-metric {
+  min-width: 0;
+  padding: 13px 11px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 15px;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.92));
+}
+.dashboard-metric-label {
+  display: block;
+  color: #94a3b8;
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dashboard-metric strong {
+  display: block;
+  margin-top: 7px;
+  color: #f8fafc;
+  font-size: clamp(0.8rem, 3.5vw, 1rem);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.dashboard-metric small {
+  display: block;
+  margin-top: 5px;
+  color: #7f91a8;
+  font-size: 0.59rem;
+  line-height: 1.35;
+}
+.dashboard-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 1px 11px;
+}
+.dashboard-section-heading h3 {
+  margin-top: 3px;
+  color: #f1f5f9;
+  font-size: 1.08rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+.dashboard-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  border-radius: 11px;
+  background: rgba(8, 145, 178, 0.12);
+  color: #7dd3fc;
+  font: inherit;
+  font-size: 0.69rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.dashboard-refresh-button:hover { background: rgba(8, 145, 178, 0.22); border-color: rgba(56, 189, 248, 0.6); }
+.dashboard-refresh-button:active { transform: translateY(1px); }
+.dashboard-refresh-button:focus-visible, .nav-item:focus-visible, .toolbar-btn:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 3px;
+}
+.dashboard-provider-note, .dashboard-empty-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 15px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.82);
+}
+.dashboard-provider-icon, .dashboard-empty-icon {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(14, 165, 233, 0.12);
+  color: #7dd3fc;
+}
+.dashboard-provider-note h3, .dashboard-empty-state h3 {
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.dashboard-provider-note p, .dashboard-empty-state p {
+  margin-top: 5px;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+.dashboard-empty-state { display: block; text-align: left; }
+.dashboard-empty-state .dashboard-empty-icon { margin-bottom: 11px; }
+.dashboard-empty-state .dashboard-refresh-button { margin-top: 13px; }
+.cockpit-map-card {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  background: #0b1220;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+}
+.app-status-bar { gap: 8px; flex-wrap: wrap; }
+.status-pill { max-width: 100%; font-size: 0.62rem; }
+.app-bottom-nav { padding-bottom: max(env(safe-area-inset-bottom), 6px); min-height: 66px; }
+.nav-item { min-width: 54px; padding: 7px 8px; font-size: 0.64rem; }
+.main-content-scrollable { padding: 14px 14px 88px; }
+@media (min-width: 700px) {
+  .cockpit-view-content, .dashboard-view-content, .map-tab-content, .history-tab-content, .settings-screen-container {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .dashboard-welcome { padding: 30px 28px; }
+  .dashboard-metrics { gap: 13px; }
+  .dashboard-metric { padding: 16px; }
+}
+@media (max-width: 380px) {
+  .dashboard-welcome { padding: 18px 15px; gap: 8px; }
+  .dashboard-mode { font-size: 0.5rem; padding: 6px 7px; }
+  .dashboard-metrics { gap: 6px; }
+  .dashboard-metric { padding: 10px 8px; }
+  .dashboard-metric-label { font-size: 0.55rem; }
+  .dashboard-metric small { font-size: 0.53rem; }
+  .app-status-bar { padding: 10px 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-refresh-button { transition: none; }
+}
