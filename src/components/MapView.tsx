@@ -14,6 +14,7 @@ interface MapViewProps {
   roadAlerts?: RoadAlert[];
   routeCoordinates?: [number, number][];
   selectedHospitalId?: string;
+  roadName?: string;
   zoom?: number;
   height?: string;
   isCockpitMode?: boolean;
@@ -58,6 +59,7 @@ export const MapView: React.FC<MapViewProps> = ({
   hospitals = [],
   roadAlerts = [],
   routeCoordinates = [],
+  roadName,
   zoom = 15,
   height = '360px',
   isCockpitMode = false,
@@ -158,13 +160,10 @@ export const MapView: React.FC<MapViewProps> = ({
       const markersGroup = L.layerGroup().addTo(map);
       leafletMarkersGroupRef.current = markersGroup;
       leafletMapRef.current = map;
-      // Leaflet measures its container at creation time. Recalculate after the UI has painted,
-      // otherwise maps mounted inside tabs/cards can render as a grey or blank rectangle.
       window.requestAnimationFrame(() => map.invalidateSize());
     }
   }, [activeEngine, latitude, longitude, zoom]);
 
-  // Recalculate map dimensions when its responsive container changes size.
   useEffect(() => {
     const map = leafletMapRef.current;
     const container = leafletContainerRef.current;
@@ -174,17 +173,6 @@ export const MapView: React.FC<MapViewProps> = ({
     return () => observer.disconnect();
   }, [activeEngine]);
 
-  // Keep Leaflet's viewport dimensions in sync with responsive layout changes.
-  useEffect(() => {
-    const map = leafletMapRef.current;
-    const container = leafletContainerRef.current;
-    if (activeEngine !== 'leaflet' || !map || !container || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [activeEngine]);
-
-  // Leaflet: Theme Change
   useEffect(() => {
     if (activeEngine !== 'leaflet' || !leafletMapRef.current || !tileLayerRef.current) return;
     const provider = tileProviders[activeTheme];
@@ -196,7 +184,6 @@ export const MapView: React.FC<MapViewProps> = ({
     tileLayerRef.current = newLayer;
   }, [activeTheme, activeEngine, mapTilerKey]);
 
-  // Leaflet: Polyline
   useEffect(() => {
     if (activeEngine !== 'leaflet' || !leafletMapRef.current) return;
     if (!routeCoordinates || routeCoordinates.length < 2) {
@@ -222,7 +209,6 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [routeCoordinates, activeEngine]);
 
-  // Leaflet: Vehicle Marker & Follow
   useEffect(() => {
     if (activeEngine !== 'leaflet' || !leafletMapRef.current || !leafletMarkersGroupRef.current) return;
 
@@ -262,7 +248,6 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [latitude, longitude, heading, speedKmH, autoFollow, activeEngine]);
 
-  // Leaflet: Hospitals and Road Hazards
   useEffect(() => {
     if (activeEngine !== 'leaflet' || !leafletMarkersGroupRef.current) return;
 
@@ -272,7 +257,6 @@ export const MapView: React.FC<MapViewProps> = ({
       }
     });
 
-    // Hospital Pins
     hospitals.forEach((hosp) => {
       const hospIcon = L.divIcon({
         className: 'custom-hospital-map-pin',
@@ -313,13 +297,12 @@ export const MapView: React.FC<MapViewProps> = ({
         .addTo(leafletMarkersGroupRef.current!);
     });
 
-    // Hazard Pins
     roadAlerts.forEach((alert) => {
       const isCritical = alert.severity === 'CRITICAL';
-      const iconSymbol = alert.type === 'ACCIDENT_BLACKSPOT' ? '⚠️' : 
-                         alert.type === 'CONSTRUCTION' ? '🚧' : 
-                         alert.type === 'SPEED_CAMERA' ? '📷' : 
-                         alert.type === 'SHARP_CURVE' ? '⚡' : '🌧️';
+      const iconSymbol = alert.type === 'ACCIDENT_BLACKSPOT' ? '⚠️' :
+        alert.type === 'CONSTRUCTION' ? '🚧' :
+        alert.type === 'SPEED_CAMERA' ? '📷' :
+        alert.type === 'SHARP_CURVE' ? '⚡' : '🌧️';
 
       const hazardIcon = L.divIcon({
         className: 'custom-road-hazard-pin',
@@ -359,9 +342,6 @@ export const MapView: React.FC<MapViewProps> = ({
     });
   }, [hospitalMarkerKey, hazardMarkerKey, activeEngine]);
 
-  // ==========================================
-  // 2. GOOGLE MAPS PLATFORM IMPLEMENTATION
-  // ==========================================
   useEffect(() => {
     if (activeEngine !== 'google' || !googleContainerRef.current || !window.google?.maps) return;
 
@@ -379,7 +359,6 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [activeEngine]);
 
-  // Recalculate Google Maps dimensions when its responsive container changes size.
   useEffect(() => {
     const map = googleMapRef.current;
     const container = googleContainerRef.current;
@@ -392,20 +371,6 @@ export const MapView: React.FC<MapViewProps> = ({
     return () => observer.disconnect();
   }, [activeEngine, latitude, longitude]);
 
-  // Keep Google Maps dimensions correct when its container resizes or becomes visible.
-  useEffect(() => {
-    const map = googleMapRef.current;
-    const container = googleContainerRef.current;
-    if (activeEngine !== 'google' || !map || !container || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => {
-      google.maps.event.trigger(map, 'resize');
-      map.setCenter({ lat: latitude, lng: longitude });
-    });
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [activeEngine, latitude, longitude]);
-
-  // Google Maps: Theme Switcher
   useEffect(() => {
     if (activeEngine !== 'google' || !googleMapRef.current) return;
     if (activeTheme === 'cockpit_dark') {
@@ -426,7 +391,6 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [activeTheme, activeEngine]);
 
-  // Google Maps: Polyline
   useEffect(() => {
     if (activeEngine !== 'google' || !googleMapRef.current || !window.google?.maps) return;
 
@@ -448,7 +412,6 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [routeCoordinates, activeEngine]);
 
-  // Google Maps: Vehicle Marker & Follow
   useEffect(() => {
     if (activeEngine !== 'google' || !googleMapRef.current || !window.google?.maps) return;
 
@@ -483,15 +446,12 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [latitude, longitude, heading, speedKmH, autoFollow, activeEngine]);
 
-  // Google Maps: Hospital & Hazard Markers
   useEffect(() => {
     if (activeEngine !== 'google' || !googleMapRef.current || !window.google?.maps) return;
 
-    // Clear old markers
     googleMarkersRef.current.forEach((m) => m.setMap(null));
     googleMarkersRef.current = [];
 
-    // Hospitals
     hospitals.forEach((hosp) => {
       const marker = new google.maps.Marker({
         position: { lat: hosp.latitude, lng: hosp.longitude },
@@ -515,7 +475,7 @@ export const MapView: React.FC<MapViewProps> = ({
             ${hosp.traumaLevel} • Dist: ${hosp.distanceKm ?? 0} km • ETA: ~${hosp.etaMinutes ?? 5}m
           </div>
           <div style="margin-top: 6px;">
-            <a href="tel:${hosp.phone}" style="display: inline-block; background: #0284c7; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; text-decoration: none; font-weight: bold;">
+            <a href="tel:${hosp.phone}" style="display: inline-block; background: #0284c7; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; text-decoration: none; font-weight: 700;">
               📞 Call ${hosp.phone}
             </a>
           </div>
@@ -532,7 +492,6 @@ export const MapView: React.FC<MapViewProps> = ({
       googleMarkersRef.current.push(marker);
     });
 
-    // Hazards
     roadAlerts.forEach((alert) => {
       const isCritical = alert.severity === 'CRITICAL';
       const marker = new google.maps.Marker({
@@ -571,14 +530,12 @@ export const MapView: React.FC<MapViewProps> = ({
     });
   }, [hospitalMarkerKey, hazardMarkerKey, activeEngine]);
 
-  // Clean up Leaflet and Google Maps on unmount
   useEffect(() => {
     return () => {
       if (leafletMapRef.current) {
         leafletMapRef.current.remove();
         leafletMapRef.current = null;
       }
-      // Clean up Google Maps markers
       googleMarkersRef.current.forEach((m) => m.setMap(null));
       googleMarkersRef.current = [];
       if (googleRoutePolylineRef.current) {
@@ -596,7 +553,6 @@ export const MapView: React.FC<MapViewProps> = ({
     };
   }, []);
 
-  // Recenter handler
   const handleRecenter = useCallback(() => {
     setAutoFollow(true);
     if (activeEngine === 'google' && googleMapRef.current) {
@@ -607,7 +563,6 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [activeEngine, latitude, longitude]);
 
-  // Zoom handlers
   const handleZoomIn = () => {
     if (activeEngine === 'google' && googleMapRef.current) {
       googleMapRef.current.setZoom((googleMapRef.current.getZoom() ?? 15) + 1);
@@ -632,9 +587,10 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   };
 
+  const displayRoadName = roadName || 'Emergency Corridor';
+
   return (
     <div className={`map-view-wrapper ${isCockpitMode ? 'cockpit-fullscreen' : ''}`} style={{ height }}>
-      {/* 1. Leaflet Container */}
       <div
         ref={leafletContainerRef}
         className="leaflet-map-element"
@@ -645,7 +601,6 @@ export const MapView: React.FC<MapViewProps> = ({
         }}
       />
 
-      {/* 2. Google Maps Container */}
       <div
         ref={googleContainerRef}
         className="google-map-element"
@@ -656,7 +611,6 @@ export const MapView: React.FC<MapViewProps> = ({
         }}
       />
 
-      {/* Engine Status Pill */}
       <div
         className="map-engine-indicator-pill"
         onClick={handleEnginePillClick}
@@ -674,17 +628,15 @@ export const MapView: React.FC<MapViewProps> = ({
         </span>
       </div>
 
-      {/* Floating Controls */}
       <div className="map-overlay-controls">
-        {/* Layer Switcher */}
         <div className="map-control-group">
           <button
             type="button"
             className="map-ctrl-btn layer-btn"
             title="Switch Map Theme"
             onClick={() => {
-              setActiveTheme((prev) => 
-                prev === 'cockpit_dark' ? 'google_streets' : 
+              setActiveTheme((prev) =>
+                prev === 'cockpit_dark' ? 'google_streets' :
                 prev === 'google_streets' ? 'satellite_hybrid' : 'cockpit_dark'
               );
             }}
@@ -694,7 +646,6 @@ export const MapView: React.FC<MapViewProps> = ({
           </button>
         </div>
 
-        {/* Navigation & Zoom Tools */}
         <div className="map-control-group">
           <button
             type="button"
@@ -723,7 +674,6 @@ export const MapView: React.FC<MapViewProps> = ({
         </div>
       </div>
 
-      {/* Road Indicator Pill on Bottom Left */}
       <div className="map-road-indicator">
         <div className="road-indicator-content">
           <div className="flex items-center space-x-1.5 text-xs text-slate-300">
@@ -731,7 +681,7 @@ export const MapView: React.FC<MapViewProps> = ({
             <span>Live Route Tracking</span>
           </div>
           <div className="road-name-text">
-            San Francisco Emergency Corridor
+            {displayRoadName}
           </div>
         </div>
       </div>
