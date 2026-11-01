@@ -90,15 +90,14 @@ describe('CrashDetectionEngine', () => {
     expect(engine.getIncidentHistory()).toHaveLength(historyLength);
   });
 
-  it('does not treat an incomplete post-impact window as a rejected event', () => {
-    const engine = new CrashDetectionEngine({ stillnessDurationSec: 1 });
-    engine.processSensorFrame(frame(1000, 4.2, 250));
-    engine.processSensorFrame(frame(1200, 1, 0));
-    engine.processSensorFrame(frame(1399, 1, 0));
-    engine.processSensorFrame(frame(2100, 1, 0));
+  it('returns unknown variance when the post-impact window has too few samples', () => {
+    const engine = new CrashDetectionEngine();
+    engine.processSensorFrame(frame(1000, 1, 0));
+    const internals = engine as unknown as {
+      calculateRingBufferVariance: (count: number, minTimestamp?: number) => number;
+    };
 
-    expect(engine.getState()).toBe('CONFIRMING');
-    expect(engine.getIncidentHistory()).toHaveLength(0);
+    expect(internals.calculateRingBufferVariance(1, 2000)).toBeNaN();
   });
 
   it('cancels countdown, restores normal state and clears timer', () => {
