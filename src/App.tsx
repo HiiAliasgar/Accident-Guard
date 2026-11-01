@@ -14,11 +14,10 @@ import {
 } from './types';
 import { sensorService } from './services/sensorService';
 import { crashDetector, DEFAULT_THRESHOLDS } from './services/crashDetector';
-import { getCurrentCoordinates, DEFAULT_HOSPITALS, getSortedHospitals, Coordinates } from './services/locationService';
+import { getCurrentCoordinates, Coordinates } from './services/locationService';
 import { navigationService, DEFAULT_ROUTE_COORDINATES } from './services/navigationService';
 
 // Subcomponents
-import { CockpitHUD } from './components/CockpitHUD';
 import { SensorGraph } from './components/SensorGraph';
 import { GForceMeter } from './components/GForceMeter';
 import { AlertScreen } from './components/AlertScreen';
@@ -260,14 +259,31 @@ export const App: React.FC = () => {
 
   const nearestHospital = hospitals[0] || null;
 
+  const handleRefreshLocation = useCallback(async () => {
+    setLocationError('Refreshing device location…');
+    try {
+      const position = await getCurrentCoordinates();
+      setCoords(position);
+      setLocationError('');
+    } catch (error) {
+      setCoords(null);
+      setLocationError(error instanceof Error ? error.message : 'Unable to obtain device location.');
+    }
+  }, []);
+
   // Helper status color and text badge (memoized to avoid re-computation on unrelated renders)
   const statusBadge = useMemo(() => {
     switch (status) {
       case 'NORMAL':
-        return (
-          <div className="status-pill safe">
+        return isSimulated ? (
+          <div className="status-pill warning" role="status">
+            <span className="pulse-dot bg-amber-400"></span>
+            <span>SIMULATION • NOT LIVE MONITORING</span>
+          </div>
+        ) : (
+          <div className="status-pill safe" role="status">
             <span className="pulse-dot bg-emerald-400"></span>
-            <span>SYSTEM MONITORING • ROAD SAFE</span>
+            <span>DEVICE SENSORS ACTIVE • EXPERIMENTAL</span>
           </div>
         );
       case 'IMPACT_DETECTED':
@@ -293,7 +309,7 @@ export const App: React.FC = () => {
           </div>
         );
     }
-  }, [status, countdownRemaining]);
+  }, [status, countdownRemaining, isSimulated]);
 
   return (
     <div className={`app-root ${isMobileFrame ? 'mobile-framed' : 'full-width'}`}>
