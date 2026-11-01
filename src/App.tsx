@@ -1,4 +1,3 @@
-// Main Application Shell for AccidentGuard: Google Maps Navigation, Road Speed & Hazards HUD, and Direct Hospital Dispatch
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   SystemStatus, 
@@ -14,7 +13,7 @@ import {
 } from './types';
 import { sensorService } from './services/sensorService';
 import { crashDetector, DEFAULT_THRESHOLDS } from './services/crashDetector';
-import { getCurrentCoordinates, DEFAULT_HOSPITALS, getSortedHospitals, Coordinates } from './services/locationService';
+import { getCurrentCoordinates, DEFAULT_HOSPITALS, getSortedHospitals, Coordinates, generateEmergencySmsPayload } from './services/locationService';
 import { navigationService, DEFAULT_ROUTE_COORDINATES } from './services/navigationService';
 
 // Subcomponents
@@ -164,6 +163,33 @@ export const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  const nearestHospital = hospitals[0] || DEFAULT_HOSPITALS[0];
+  const favoriteContact = useMemo(
+    () => contacts.find((contact) => contact.isPrimary) ?? contacts[0] ?? null,
+    [contacts]
+  );
+
+  const triggerFavoriteContactSms = useCallback((incidentOverride?: IncidentRecord | null) => {
+    if (!favoriteContact || typeof window === 'undefined') return false;
+
+    const activeIncident = incidentOverride ?? currentIncident;
+    const payload = generateEmergencySmsPayload({
+      userName: favoriteContact.name,
+      coords,
+      peakG: activeIncident?.peakG ?? 0,
+      nearestHospital,
+      timestamp: activeIncident?.timestamp ?? Date.now()
+    });
+
+    const normalizedPhone = favoriteContact.phone.replace(/[^\d+]/g, '');
+    const smsHref = normalizedPhone
+      ? `sms:${normalizedPhone}?body=${encodeURIComponent(payload.messageText)}`
+      : `sms:?body=${encodeURIComponent(payload.messageText)}`;
+
+    window.location.href = smsHref;
+    return true;
+  }, [coords, currentIncident, favoriteContact, nearestHospital]);
+
   // Crash Detector Event Listeners
   useEffect(() => {
     const unsubState = crashDetector.onStateChange((newState, incident) => {
@@ -172,6 +198,11 @@ export const App: React.FC = () => {
         setCurrentIncident(incident);
       }
       setIncidents(crashDetector.getIncidentHistory());
+
+      if (newState === 'ALERT_TRIGGERED' && incident) {
+        triggerFavoriteContactSms(incident);
+      }
+
       // Trigger native tactile haptic vibration on emergency transitions
       if (newState === 'IMPACT_DETECTED' || newState === 'CONFIRMING' || newState === 'ALERT_TRIGGERED') {
         hardwareService.triggerEmergencyVibration();
@@ -186,7 +217,7 @@ export const App: React.FC = () => {
       unsubState();
       unsubTick();
     };
-  }, []);
+  }, [triggerFavoriteContactSms]);
 
   // Handle Simulation Triggers
   const handleTriggerScenario = useCallback((scenario: SimulationScenario) => {
@@ -209,8 +240,9 @@ export const App: React.FC = () => {
 
   // Immediate dispatch (skip countdown)
   const handleTriggerImmediateDispatch = useCallback(() => {
+    triggerFavoriteContactSms();
     setStatus('DISPATCHED');
-  }, []);
+  }, [triggerFavoriteContactSms]);
 
   // Reset from dispatch back to normal
   const handleResetToNormal = useCallback(() => {
@@ -249,8 +281,6 @@ export const App: React.FC = () => {
   const handleDeleteContact = useCallback((id: string) => {
     setContacts((prev) => prev.filter((c) => c.id !== id));
   }, []);
-
-  const nearestHospital = hospitals[0] || DEFAULT_HOSPITALS[0];
 
   // Helper status color and text badge (memoized to avoid re-computation on unrelated renders)
   const statusBadge = useMemo(() => {
@@ -379,6 +409,7 @@ export const App: React.FC = () => {
                     hospitals={hospitals}
                     roadAlerts={roadAlerts}
                     routeCoordinates={DEFAULT_ROUTE_COORDINATES}
+                    roadName={telemetry.currentRoadName}
                     height="320px"
                     zoom={15}
                     isCockpitMode={true}
@@ -474,6 +505,7 @@ export const App: React.FC = () => {
                   longitude={coords.longitude}
                   hospitals={hospitals}
                   roadAlerts={roadAlerts}
+                  roadName={telemetry.currentRoadName}
                   height="260px"
                   zoom={13}
                   engine={mapEngine}
