@@ -321,7 +321,7 @@ export const App: React.FC = () => {
           </div>
           <div>
             <h1 className="brand-name">AccidentGuard</h1>
-            <span className="brand-version">Automotive Telemetry & Hospital SOS</span>
+            <span className="brand-version">Experimental Crash Detection • Android</span>
           </div>
         </div>
 
@@ -342,10 +342,10 @@ export const App: React.FC = () => {
             type="button"
             className="toolbar-btn"
             onClick={() => setShowMLModal(true)}
-            title="View Algorithm & ML Architecture Specs"
+            title="View current detection implementation and limitations"
           >
             <Cpu size={16} className="text-cyan-400 mr-1.5" />
-            <span className="hidden sm:inline">ML Specs</span>
+            <span className="hidden sm:inline">Detection Info</span>
           </button>
 
           {/* Mobile Frame Toggle */}
