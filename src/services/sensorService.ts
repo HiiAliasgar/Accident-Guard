@@ -1,5 +1,28 @@
 // High-frequency (~50Hz) Sensor Telemetry Manager with Real Hardware & Physics Simulation support
 import { SensorDataPoint, SimulationScenario } from '../types';
+import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
+
+interface NativeSensorFrame {
+  x: number;
+  y: number;
+  z: number;
+  alpha: number;
+  beta: number;
+  gamma: number;
+  monotonicTimestampMs: number;
+}
+
+interface NativeSensorBridgePlugin {
+  start(options: { samplingPeriodUs: number }): Promise<{
+    accelerometerAvailable: boolean;
+    gyroscopeAvailable: boolean;
+    backgroundMonitoring: boolean;
+  }>;
+  stop(): Promise<{ stopped: boolean }>;
+  addListener(eventName: 'sensorFrame', listener: (frame: NativeSensorFrame) => void): Promise<PluginListenerHandle>;
+}
+
+const NativeSensorBridge = registerPlugin<NativeSensorBridgePlugin>('NativeSensorBridge');
 
 /** Pure arithmetic rounding — avoids parseFloat(toFixed()) string allocation in hot loops */
 const round3 = (v: number): number => Math.round(v * 1000) / 1000;
@@ -14,6 +37,8 @@ class SensorService {
   private isHardwareAvailable: boolean = false;
   private hasPermission: boolean = false;
   private hardwareListenerAttached: boolean = false;
+  private nativeSensorListener: PluginListenerHandle | null = null;
+  private nativeSensorStarted = false;
   private lastHardwareSampleAt: number = 0;
   private readonly hardwareFreshnessMs = 2000;
 
@@ -61,6 +86,7 @@ class SensorService {
     if (sim) {
       this.isSimulated = true;
       this.currentScenario = 'NONE';
+      void this.stopNativeSensorStream();
       return;
     }
     // Keep the UI honest while the permission request is pending. Switch to hardware
@@ -76,13 +102,54 @@ class SensorService {
   public async requestHardwarePermissions(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
 
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+      try {
+        if (!this.nativeSensorListener) {
+          this.nativeSensorListener = await NativeSensorBridge.addListener('sensorFrame', (frame) => {
+            if (![frame.x, frame.y, frame.z, frame.alpha, frame.beta, frame.gamma].every(Number.isFinite)) return;
+            // Android accelerometer values include gravity and are reported in m/s².
+            this.currentRawAccel = {
+              x: frame.x / 9.80665,
+              y: frame.y / 9.80665,
+              z: frame.z / 9.80665
+            };
+            // Gyroscope values are converted to degrees/second in the native bridge.
+            this.currentRawGyro = {
+              alpha: frame.alpha,
+              beta: frame.beta,
+              gamma: frame.gamma
+            };
+            this.lastHardwareSampleAt = Date.now();
+            this.isSimulated = false;
+          });
+        }
+
+        const status = await NativeSensorBridge.start({ samplingPeriodUs: 20000 });
+        this.nativeSensorStarted = true;
+        this.isHardwareAvailable = status.accelerometerAvailable;
+        this.hasPermission = status.accelerometerAvailable;
+        if (!status.accelerometerAvailable) {
+          this.isSimulated = true;
+          return false;
+        }
+        // Do not label the stream as hardware until the first valid native frame arrives.
+        this.isSimulated = true;
+        return true;
+      } catch (err) {
+        console.warn('Native Android sensor bridge failed:', err);
+        this.isSimulated = true;
+        this.hasPermission = false;
+        this.isHardwareAvailable = false;
+        return false;
+      }
+    }
+
     if (!('DeviceMotionEvent' in window) || typeof DeviceMotionEvent === 'undefined') {
       this.isHardwareAvailable = false;
       this.isSimulated = true;
       return false;
     }
     this.isHardwareAvailable = true;
-    // iOS 13+ requires explicit permission request
     const DeviceMotionEventWithPermission = DeviceMotionEvent as unknown as {
       requestPermission?: () => Promise<'granted' | 'denied'>;
     };
@@ -99,12 +166,25 @@ class SensorService {
         console.warn('Sensor permission error:', err);
       }
       return false;
-    } else {
-      // Non-iOS or standard Android browser
-      this.hasPermission = true;
-      this.attachHardwareListeners();
-      return true;
     }
+
+    this.hasPermission = true;
+    this.attachHardwareListeners();
+    return true;
+  }
+
+  private async stopNativeSensorStream(): Promise<void> {
+    if (!this.nativeSensorStarted) return;
+    this.nativeSensorStarted = false;
+    try {
+      await NativeSensorBridge.stop();
+    } catch (err) {
+      console.warn('Unable to stop native sensor stream:', err);
+    }
+    this.nativeSensorListener?.remove();
+    this.nativeSensorListener = null;
+    this.hasPermission = false;
+    this.isSimulated = true;
   }
 
   private attachHardwareListeners() {
@@ -145,6 +225,7 @@ class SensorService {
       this.callbacks.delete(cb);
       if (this.callbacks.size === 0) {
         this.stopSampling();
+        void this.stopNativeSensorStream();
       }
     };
   }
@@ -360,7 +441,8 @@ class SensorService {
     // Return a fresh frame. Reusing one mutable object corrupts retained history
     // because downstream ring buffers otherwise store references to the same object.
     return {
-      timestamp: now,
+      // performance.now() is monotonic; wall-clock changes cannot reorder detector frames.
+      timestamp: typeof performance !== 'undefined' ? performance.now() : now,
       x: round3(x),
       y: round3(y),
       z: round3(z),
