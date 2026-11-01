@@ -31,19 +31,8 @@ class SensorService {
   private isAdaptiveSampling: boolean = true;
   private isPowerSaver: boolean = false;
 
-  // Pre-allocated object to eliminate garbage collection allocations in 50Hz loop
-  private reusableSample: SensorDataPoint = {
-    timestamp: 0,
-    x: 0,
-    y: 0,
-    z: 1,
-    magnitude: 1,
-    dynamicAcceleration: 0,
-    alpha: 0,
-    beta: 0,
-    gamma: 0,
-    rotationMagnitude: 0
-  };
+  // Each emitted frame is immutable-by-ownership: consumers may safely retain it
+  // in ring buffers and incident history without later samples mutating old data.
 
   constructor() {
     this.checkHardwareSupport();
@@ -368,19 +357,20 @@ class SensorService {
     const dynamicAcceleration = Math.abs(magnitude - 1.0);
     const rotationMagnitude = Math.sqrt(alpha * alpha + beta * beta + gamma * gamma);
 
-    // OPTIMIZATION: Mutate pre-allocated object (zero GC pressure in 50Hz loop)
-    const s = this.reusableSample;
-    s.timestamp = now;
-    s.x = round3(x);
-    s.y = round3(y);
-    s.z = round3(z);
-    s.magnitude = round3(magnitude);
-    s.dynamicAcceleration = round3(dynamicAcceleration);
-    s.alpha = round1(alpha);
-    s.beta = round1(beta);
-    s.gamma = round1(gamma);
-    s.rotationMagnitude = round1(rotationMagnitude);
-    return s;
+    // Return a fresh frame. Reusing one mutable object corrupts retained history
+    // because downstream ring buffers otherwise store references to the same object.
+    return {
+      timestamp: now,
+      x: round3(x),
+      y: round3(y),
+      z: round3(z),
+      magnitude: round3(magnitude),
+      dynamicAcceleration: round3(dynamicAcceleration),
+      alpha: round1(alpha),
+      beta: round1(beta),
+      gamma: round1(gamma),
+      rotationMagnitude: round1(rotationMagnitude)
+    };
   }
 }
 
