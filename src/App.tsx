@@ -392,6 +392,40 @@ export const App: React.FC = () => {
             {/* 1. COCKPIT NAVIGATION & GOOGLE MAPS HUD */}
             {currentTab === 'navigation' && (
               <div className="cockpit-view-content">
+                <section className="dashboard-welcome">
+                  <div className="dashboard-welcome-copy">
+                    <span className="dashboard-eyebrow">ACCIDENTGUARD / SAFETY CONSOLE</span>
+                    <h2>Stay aware.<br /><em>Get help faster.</em></h2>
+                    <p>Experimental crash-sensing dashboard. Verify sensor and location status before every test.</p>
+                  </div>
+                  <div className={'dashboard-mode ' + (isSimulated ? 'mode-demo' : 'mode-device')}>
+                    <span className="dashboard-mode-dot" />
+                    {isSimulated ? 'DEMO DATA' : 'DEVICE INPUT'}
+                  </div>
+                </section>
+                <section className="dashboard-metrics" aria-label="System status">
+                  <article className="dashboard-metric">
+                    <span className="dashboard-metric-label">Sensor input</span>
+                    <strong>{isSimulated ? 'Simulation' : 'Device'}</strong>
+                    <small>{sensorService.getSamplingRate()} Hz target rate</small>
+                  </article>
+                  <article className="dashboard-metric">
+                    <span className="dashboard-metric-label">GPS status</span>
+                    <strong>{coords ? 'Available' : 'Unavailable'}</strong>
+                    <small>{coords ? '±' + Math.round(coords.accuracy ?? 0) + ' m accuracy' : 'Permission / fix required'}</small>
+                  </article>
+                  <article className="dashboard-metric">
+                    <span className="dashboard-metric-label">Incidents</span>
+                    <strong>{incidents.length}</strong>
+                    <small>Locally recorded events</small>
+                  </article>
+                </section>
+                <div className="dashboard-section-heading">
+                  <div><span className="dashboard-eyebrow">LIVE POSITION</span><h3>Location overview</h3></div>
+                  <button type="button" className="dashboard-refresh-button" onClick={handleRefreshLocation}>
+                    <Navigation size={14} /> Refresh GPS
+                  </button>
+                </div>
                 {/* Show the map only after the device has supplied a real location. */}
                 <div className="cockpit-map-card">
                   {coords ? (
@@ -401,7 +435,7 @@ export const App: React.FC = () => {
                       longitude={coords.longitude}
                       heading={0}
                       speedKmH={0}
-                      hospitals={[]}
+                      hospitals={hospitals}
                       roadAlerts={[]}
                       routeCoordinates={[]}
                       height="320px"
@@ -415,16 +449,15 @@ export const App: React.FC = () => {
                     <div role="status" className="p-5 text-sm text-slate-300">
                       <h2 className="text-base font-semibold text-white">Current location unavailable</h2>
                       <p className="mt-2">{locationError}</p>
-                      <p className="mt-2">Grant location permission and reload to show your position. Route distance, ETA, road name, traffic and vehicle speed are unavailable until a real provider supplies them.</p>
-                      <a className="inline-block mt-3 underline" href="https://www.google.com/maps" target="_blank" rel="noreferrer">Open Google Maps</a>
+                      <p className="mt-2">Allow location access, then refresh GPS. Route distance, ETA, traffic and vehicle speed are unavailable until a real provider is connected.</p>
+                      <button type="button" className="dashboard-refresh-button mt-4" onClick={handleRefreshLocation}>Try location again</button>
                     </div>
                   )}
                 </div>
 
-                <section className="p-4 rounded-xl border border-slate-700 bg-slate-900/60" aria-label="Navigation status">
-                  <h2 className="font-semibold text-white">Navigation provider not configured</h2>
-                  <p className="mt-2 text-sm text-slate-300">Live road routing is not currently connected. Route distance, ETA, speed limits, live traffic and road hazards are intentionally unavailable instead of simulated.</p>
-                  <p className="mt-2 text-xs text-amber-300">Crash detection is experimental and has not been safety-validated.</p>
+                <section className="dashboard-provider-note" aria-label="Navigation status">
+                  <div className="dashboard-provider-icon"><MapPin size={18} /></div>
+                  <div><h3>Navigation not connected</h3><p>Live routing, traffic, speed limits and road hazards are not available yet. No route or speed values are fabricated.</p></div>
                 </section>
 
                 {/* Quick Crash Simulator Launcher Bar */}
@@ -518,7 +551,7 @@ export const App: React.FC = () => {
                 <div className="map-banner mb-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-sm font-bold text-white">Trauma Centers & EMS Coverage</h2>
+                      <h2 className="text-sm font-bold text-white">Location & nearby facilities</h2>
                       <p className="text-xs text-slate-400">
                         {coords ? `GPS: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)} (accuracy ±${Math.round(coords.accuracy ?? 0)}m)` : `GPS unavailable: ${locationError}`}
                       </p>
@@ -532,7 +565,7 @@ export const App: React.FC = () => {
                     key={`map-hosp-${mapKeyRevision}-${mapEngine}`}
                     latitude={coords.latitude}
                     longitude={coords.longitude}
-                    hospitals={[]}
+                    hospitals={hospitals}
                     roadAlerts={[]}
                     height="260px"
                     zoom={13}
@@ -544,6 +577,14 @@ export const App: React.FC = () => {
                   <p role="status" className="p-4 text-sm text-slate-300">Location unavailable: {locationError}</p>
                 )}
 
+                {hospitals.length === 0 && (
+                  <section className="dashboard-empty-state" role="status">
+                    <div className="dashboard-empty-icon"><HospitalIcon size={22} /></div>
+                    <h3>No verified hospital provider</h3>
+                    <p>There are no hospital records configured. This screen currently shows your location only; it does not identify nearby trauma centres or provide emergency routing.</p>
+                    <button type="button" className="dashboard-refresh-button" onClick={() => setCurrentTab("settings")}>Review map settings</button>
+                  </section>
+                )}
                 <div className="nearby-hospitals-scroll mt-3">
                   {hospitals.map((hosp, idx) => (
                     <div key={hosp.id} className="hospital-card-mini">
