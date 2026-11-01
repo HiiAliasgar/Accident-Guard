@@ -22,12 +22,12 @@ export const DEFAULT_THRESHOLDS: DetectionThresholds = {
   stillnessDurationSec: 3.0,
 
   /**
-   * STILLNESS VARIANCE THRESHOLD (0.25g):
+   * STILLNESS VARIANCE THRESHOLD (0.25 g²):
    * Rationale: Quantifies acceleration fluctuations during the post-impact window.
-   * If variance is < 0.25g, the device is immobilized (consistent with a crashed car).
-   * If variance is > 0.25g, active movement/handling is ongoing -> dismiss as false alarm.
+   * If variance is < 0.25 g², acceleration magnitude fluctuates less in the sampled window; this does not prove vehicle immobilisation.
+   * Higher variance may indicate movement or vibration; this experimental heuristic cannot reliably classify the event.
    */
-  stillnessVarianceG: 0.25,
+  stillnessVarianceG2: 0.25,
 
   /**
    * GYROSCOPE TUMBLING THRESHOLD (180 deg/s):
@@ -204,8 +204,8 @@ export class CrashDetectionEngine {
           const postImpactMinTimestamp = this.impactTimestamp + 400;
           const variance = this.calculateRingBufferVariance(windowSampleCount, postImpactMinTimestamp);
 
-          // Check if vehicle stopped (variance < stillnessVarianceG)
-          const isStationary = variance <= this.thresholds.stillnessVarianceG;
+          // Check if vehicle stopped (variance < stillnessVarianceG2)
+          const isStationary = variance <= this.thresholds.stillnessVarianceG2;
           // Check if gyro registered meaningful tumbling or if impact was high enough to warrant confirmation
           const registeredTumble = this.peakGyroRecorded >= (this.thresholds.gyroTumbleThresholdDegPerSec * 0.7);
 
