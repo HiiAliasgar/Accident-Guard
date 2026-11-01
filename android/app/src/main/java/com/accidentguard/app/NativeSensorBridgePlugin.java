@@ -33,6 +33,7 @@ public class NativeSensorBridgePlugin extends Plugin implements SensorEventListe
     private float gx = 0f;
     private float gy = 0f;
     private float gz = 0f;
+    private long lastGyroTimestampNanos = 0L;
 
     @PluginMethod
     public void start(PluginCall call) {
@@ -111,6 +112,7 @@ public class NativeSensorBridgePlugin extends Plugin implements SensorEventListe
             gx = event.values[0] * radiansToDegrees;
             gy = event.values[1] * radiansToDegrees;
             gz = event.values[2] * radiansToDegrees;
+            lastGyroTimestampNanos = event.timestamp;
         }
     }
 
@@ -121,9 +123,12 @@ public class NativeSensorBridgePlugin extends Plugin implements SensorEventListe
         frame.put("z", az);
         // Android gyroscope axes are device-relative. Mapping is provisional;
         // phone mounting/orientation calibration is needed for vehicle-frame features.
-        frame.put("alpha", gz);
-        frame.put("beta", gx);
-        frame.put("gamma", gy);
+        boolean gyroFresh = lastGyroTimestampNanos > 0L
+            && sensorTimestampNanos >= lastGyroTimestampNanos
+            && sensorTimestampNanos - lastGyroTimestampNanos <= 250000000L;
+        frame.put("alpha", gyroFresh ? gz : 0f);
+        frame.put("beta", gyroFresh ? gx : 0f);
+        frame.put("gamma", gyroFresh ? gy : 0f);
         // SensorEvent.timestamp uses the monotonic elapsed-realtime time base.
         frame.put("monotonicTimestampMs", sensorTimestampNanos / 1000000.0);
         notifyListeners("sensorFrame", frame);
