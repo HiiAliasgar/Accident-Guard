@@ -1,6 +1,6 @@
 // ML & Engineering Architecture Reference Modal: Threshold Heuristics vs Production Deep Learning
 import React from 'react';
-import { X, Cpu, Layers, GitCompare, Database, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Cpu, Layers, GitCompare, Database, AlertCircle } from 'lucide-react';
 
 interface MLReferenceModalProps {
   isOpen: boolean;
@@ -148,19 +148,19 @@ export const MLReferenceModal: React.FC<MLReferenceModalProps> = ({ isOpen, onCl
             </h3>
             <ul className="roadmap-list">
               <li>
-                <CheckCircle2 size={16} className="text-emerald-400 mr-2 flex-shrink-0" />
+                <AlertCircle size={16} className="text-amber-400 mr-2 flex-shrink-0" />
                 <span>
                   <strong>Dataset Sourcing:</strong> Acquire a properly labeled crash and non-crash sensor dataset with device placement, vehicle type and phone orientation metadata. No validated dataset is currently integrated.
                 </span>
               </li>
               <li>
-                <CheckCircle2 size={16} className="text-emerald-400 mr-2 flex-shrink-0" />
+                <AlertCircle size={16} className="text-amber-400 mr-2 flex-shrink-0" />
                 <span>
                   <strong>Feature Engineering:</strong> Extract spectral features via Fast Fourier Transform (FFT), Jerk derivatives (da/dt), spectral centroid, and zero-crossing rates.
                 </span>
               </li>
               <li>
-                <CheckCircle2 size={16} className="text-emerald-400 mr-2 flex-shrink-0" />
+                <AlertCircle size={16} className="text-amber-400 mr-2 flex-shrink-0" />
                 <span>
                   <strong>Edge Quantization:</strong> Quantize model to 8-bit integers (INT8) for maximum battery life and sub-10ms inference on mobile NPUs (Apple Neural Engine / Qualcomm Hexagon).
                 </span>
