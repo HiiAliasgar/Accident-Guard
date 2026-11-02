@@ -85,7 +85,7 @@ jobs:
           working-directory: android
           script: |
             set +e
-            ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
+            ./gradlew :app:connectedDebugAndroidTest --no-daemon --stacktrace
             test_status=$?
             adb logcat -d -t 5000 > ../android-emulator-logcat.txt
             exit "$test_status"
