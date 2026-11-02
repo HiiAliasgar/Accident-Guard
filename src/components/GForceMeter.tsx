@@ -19,7 +19,7 @@ export const GForceMeter: React.FC<GForceMeterProps> = ({
   // Percentage for the gauge bar (0 to 6.0g max scale)
   const maxG = 6.0;
   const percentage = Math.min(100, Math.max(0, (currentG / maxG) * 100));
-  const thresholdPercentage = (impactThreshold / maxG) * 100;
+  const thresholdPercentage = Math.min(100, Math.max(0, (impactThreshold / maxG) * 100));
 
   // Color coding
   let statusColor = '#10b981'; // Green safe
@@ -27,7 +27,7 @@ export const GForceMeter: React.FC<GForceMeterProps> = ({
   if (currentG >= impactThreshold) {
     statusColor = '#ef4444'; // Red impact
     statusText = 'CRASH SPIKE';
-  } else if (currentG >= 2.2) {
+  } else if (currentG >= 2.5) {
     statusColor = '#f59e0b'; // Amber warning
     statusText = 'HIGH DECEL';
   } else if (currentG >= 1.4) {
@@ -35,8 +35,11 @@ export const GForceMeter: React.FC<GForceMeterProps> = ({
     statusText = 'MODERATE';
   }
 
+  // Linear peak hold indication
+  const isImpactWarning = currentG >= impactThreshold;
+
   return (
-    <div className="gforce-meter-card">
+    <div className={`gforce-meter-card ${isImpactWarning ? 'border-red-500/60 shadow-red-950' : ''}`}>
       <div className="meter-top">
         <div className="meter-value-block">
           <span className="meter-label">Resultant G-Force</span>

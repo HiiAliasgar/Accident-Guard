@@ -135,7 +135,23 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   const handleCopy = () => {
     navigator.clipboard?.writeText(smsPayload.messageText).catch(() => {});
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleShare = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: 'AccidentGuard Emergency SOS Draft',
+          text: smsPayload.messageText,
+          url: smsPayload.mapsUrl
+        });
+      } catch {
+        // User dismissed share dialog
+      }
+    } else {
+      handleCopy();
+    }
   };
 
   const toggleVoiceMute = () => {
@@ -194,6 +210,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
             href={smsHref}
             className="action-btn direct-sms-btn"
             id="btn-direct-sms"
+            aria-label="Open emergency SMS draft in messaging app"
           >
             <Send size={18} />
             <span>Open demo SMS draft — verify before sending</span>
@@ -204,12 +221,13 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
               href={`tel:${nearestHospital.phone.replace(/[^0-9+]/g, '')}`}
               className="action-btn direct-call-btn"
               id="btn-direct-call"
+              aria-label={`Call hospital emergency desk at ${nearestHospital.phone}`}
             >
               <PhoneCall size={18} />
               <span>Call verified hospital ({nearestHospital.phone})</span>
             </a>
           ) : (
-            <span className="action-btn direct-call-btn" aria-disabled="true">
+            <span className="action-btn direct-call-btn opacity-75" aria-disabled="true">
               <PhoneCall size={18} />
               <span>No verified hospital number configured</span>
             </span>
@@ -221,6 +239,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
             rel="noopener noreferrer"
             className="action-btn google-maps-btn"
             id="btn-google-maps"
+            aria-label="View current coordinates on Google Maps external website"
           >
             <ExternalLink size={18} />
             <span>View demonstration coordinates on Google Maps</span>
@@ -280,31 +299,50 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
       {/* SMS Payload Preview Box */}
       <div className="sms-payload-box">
         <div className="sms-payload-header">
-          <span className="sms-label">Emergency SMS draft — review before sending</span>
-          <button
-            type="button"
-            className="copy-btn"
-            onClick={handleCopy}
-            id="btn-copy-sms"
-          >
-            {copied ? (
-              <>
-                <Check size={14} className="text-emerald-400" />
-                <span>Copied</span>
-              </>
-            ) : (
-              <>
-                <Copy size={14} />
-                <span>Copy Message</span>
-              </>
-            )}
-          </button>
+          <span className="sms-label">Emergency SOS Draft Payload</span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              className="copy-btn"
+              onClick={handleShare}
+              title="Share or send via installed apps"
+            >
+              <Send size={14} />
+              <span>Share</span>
+            </button>
+            <button
+              type="button"
+              className="copy-btn"
+              onClick={handleCopy}
+              id="btn-copy-sms"
+              title="Copy payload to clipboard"
+            >
+              {copied ? (
+                <>
+                  <Check size={14} className="text-emerald-400" />
+                  <span className="text-emerald-400">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={14} />
+                  <span>Copy</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
         <pre className="sms-text-content">{smsPayload.messageText}</pre>
         <div className="sms-recipients-row">
           <span className="recipients-label">Draft recipients (none pre-filled):</span>
-          {smsPayload.recipientNumbers.map((num, idx) => (
-            <span key={idx} className="recipient-pill">{num}</span>
+          {contacts.map((c) => (
+            <a
+              key={c.id}
+              href={`sms:${c.phone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent(smsPayload.messageText)}`}
+              className="recipient-pill hover:border-cyan-400"
+              title={`Send SOS draft to ${c.name}`}
+            >
+              📱 {c.name} ({c.phone})
+            </a>
           ))}
         </div>
       </div>

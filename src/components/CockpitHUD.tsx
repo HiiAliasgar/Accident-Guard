@@ -213,6 +213,7 @@ export const CockpitHUD: React.FC<CockpitHUDProps> = ({
             className="drive-btn accel-btn"
             onClick={onAccelerate}
             id="btn-accelerate"
+            title="Increase simulated speed by 10"
           >
             <ArrowUp size={16} />
             <span>Accelerate (+10)</span>
@@ -223,9 +224,10 @@ export const CockpitHUD: React.FC<CockpitHUDProps> = ({
             className="drive-btn cruise-btn"
             onClick={onCruise}
             id="btn-cruise"
+            title={`Set speed to match road limit (${displayLimit} ${units})`}
           >
             <Play size={16} />
-            <span>Match Limit ({displayLimit})</span>
+            <span>Cruise ({displayLimit})</span>
           </button>
 
           <button
@@ -233,6 +235,7 @@ export const CockpitHUD: React.FC<CockpitHUDProps> = ({
             className="drive-btn brake-btn"
             onClick={onBrake}
             id="btn-brake"
+            title="Decrease simulated speed by 15"
           >
             <ArrowDown size={16} />
             <span>Brake (-15)</span>
@@ -243,6 +246,7 @@ export const CockpitHUD: React.FC<CockpitHUDProps> = ({
             className="drive-btn stop-btn"
             onClick={onEmergencyStop}
             id="btn-stop"
+            title="Trigger emergency vehicle stop"
           >
             <Square size={16} />
             <span>Full Stop</span>
