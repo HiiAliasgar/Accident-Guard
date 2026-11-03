@@ -751,7 +751,7 @@ export const MapView: React.FC<MapViewProps> = ({
             <span>{routeCoordinates.length > 1 ? 'Route preview' : 'Map preview · live routing not connected'}</span>
           </div>
           <div className="road-name-text">
-            San Francisco Emergency Corridor
+            Current position · live routing not connected
           </div>
         </div>
       </div>
