@@ -1,5 +1,5 @@
 // Main Application Shell for AccidentGuard: navigation, road telemetry, and emergency alert review
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   SystemStatus, 
   SensorDataPoint, 
@@ -72,6 +72,8 @@ export const App: React.FC = () => {
   // Simulation & Device settings
   const [isSimulated, setIsSimulated] = useState<boolean>(sensorService.getIsSimulated());
   const [sensorModeNotice, setSensorModeNotice] = useState<string>('Simulation is active. Enable device sensors explicitly to attempt real motion input.');
+  const sensorModeRef = useRef<boolean>(sensorService.getIsSimulated());
+  const gyroActiveRef = useRef<boolean>(false);
   const [activeScenario, setActiveScenario] = useState<SimulationScenario>('NONE');
   const [isMobileFrame, setIsMobileFrame] = useState<boolean>(true);
   const [showMLModal, setShowMLModal] = useState<boolean>(false);
@@ -79,7 +81,7 @@ export const App: React.FC = () => {
 
   // Location & Hospitals
   const [coords, setCoords] = useState<Coordinates | null>(null);
-  const [locationError, setLocationError] = useState<string>('Location has not been acquired.');
+  const [locationError, setLocationError] = useState<string>('Location has not been requested. Tap Refresh GPS when ready.');
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [contacts, setContacts] = useState<EmergencyContact[]>(() => {
     try {
@@ -126,20 +128,7 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Initialize GPS Coordinates and Hospitals
-  useEffect(() => {
-    let active = true;
-    getCurrentCoordinates().then((pos) => {
-      if (!active) return;
-      setCoords(pos);
-      setLocationError('');
-    }).catch((error: unknown) => {
-      if (!active) return;
-      setCoords(null);
-      setLocationError(error instanceof Error ? error.message : 'Location unavailable.');
-    });
-    return () => { active = false; };
-  }, []);
+  // GPS permission is requested only after the user taps Refresh GPS.
 
   // Subscribe to Navigation & Driving Telemetry Updates
   useEffect(() => {
@@ -155,7 +144,19 @@ export const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = sensorService.subscribe((point) => {
       setCurrentPoint(point);
-      setIsSimulated(sensorService.getIsSimulated());
+      const simulated = sensorService.getIsSimulated();
+      const sensorStatus = sensorService.getHardwareStatus();
+      if (sensorModeRef.current !== simulated || gyroActiveRef.current !== sensorStatus.gyroscopeActive) {
+        sensorModeRef.current = simulated;
+        gyroActiveRef.current = sensorStatus.gyroscopeActive;
+        setIsSimulated(simulated);
+        if (simulated) {
+          setSensorModeNotice('Fresh device sensor frames stopped. Simulation is active; live monitoring is unavailable.');
+        } else {
+          const gyro = sensorStatus.gyroscopeActive ? 'active' : sensorStatus.gyroscopeAvailable ? 'detected but awaiting fresh samples' : 'not detected';
+          setSensorModeNotice('Fresh hardware readings received. Accelerometer active; gyroscope ' + gyro + '. Experimental only.');
+        }
+      }
       crashDetector.processSensorFrame(point);
     });
     return () => unsubscribe();
@@ -513,10 +514,15 @@ export const App: React.FC = () => {
                             setSensorModeNotice('Native sensor bridge unavailable or accelerometer missing. Simulation remains active; live crash monitoring is unavailable.');
                             return;
                           }
-                          setSensorModeNotice('Sensor stream started. Waiting for a fresh hardware sample; simulation remains labelled until one arrives.');
+                          const sensorStatus = sensorService.getHardwareStatus();
+                          setSensorModeNotice('Accelerometer ' + (sensorStatus.accelerometerAvailable ? 'detected' : 'not detected') +
+                            '; gyroscope ' + (sensorStatus.gyroscopeAvailable ? 'detected' : 'not detected') +
+                            '. Waiting for fresh samples.');
                         });
                       } else {
                         sensorService.setIsSimulated(true);
+                        sensorModeRef.current = true;
+                        gyroActiveRef.current = false;
                         setIsSimulated(true);
                         setSensorModeNotice('Simulation is active. Values on the sensor graph are test data, not real telemetry.');
                       }
