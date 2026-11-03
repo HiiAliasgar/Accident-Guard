@@ -748,7 +748,7 @@ export const MapView: React.FC<MapViewProps> = ({
         <div className="road-indicator-content">
           <div className="flex items-center space-x-1.5 text-xs text-slate-300">
             <span className="road-dot"></span>
-            <span>Live Route Tracking</span>
+            <span>{routeCoordinates.length > 1 ? 'Route preview' : 'Map preview · live routing not connected'}</span>
           </div>
           <div className="road-name-text">
             San Francisco Emergency Corridor
