@@ -62,6 +62,7 @@ jobs:
       - name: Sync Capacitor Android project
         run: npx cap sync android
       - name: Build Android debug APK and run local JVM tests
+        id: android_compile
         run: |
           chmod +x android/gradlew
           cd android
@@ -117,7 +118,7 @@ jobs:
           retention-days: 7
 
       - name: Upload debug APK
-        if: success()
+        if: always() && steps.android_compile.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: accidentguard-android-debug
