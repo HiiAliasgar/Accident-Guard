@@ -15,7 +15,7 @@ import {
 import { sensorService } from './services/sensorService';
 import { crashDetector, DEFAULT_THRESHOLDS } from './services/crashDetector';
 import { getCurrentCoordinates, Coordinates } from './services/locationService';
-import { navigationService, DEFAULT_ROUTE_COORDINATES } from './services/navigationService';
+import { navigationService } from './services/navigationService';
 
 // Subcomponents
 import { SensorGraph } from './components/SensorGraph';
@@ -434,10 +434,8 @@ export const App: React.FC = () => {
                       key={`map-nav-${mapKeyRevision}-${mapEngine}`}
                       latitude={coords.latitude}
                       longitude={coords.longitude}
-                      heading={0}
-                      speedKmH={0}
-                      hospitals={hospitals}
-                      roadAlerts={[]}
+                                            hospitals={hospitals}
+                      roadAlerts={roadAlerts}
                       routeCoordinates={[]}
                       height="320px"
                       zoom={15}
