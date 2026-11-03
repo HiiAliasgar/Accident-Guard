@@ -515,8 +515,8 @@ export const App: React.FC = () => {
                             return;
                           }
                           const sensorStatus = sensorService.getHardwareStatus();
-                          setSensorModeNotice('Accelerometer ' + (sensorStatus.accelerometerAvailable ? 'detected' : 'not detected') +
-                            '; gyroscope ' + (sensorStatus.gyroscopeAvailable ? 'detected' : 'not detected') +
+                          setSensorModeNotice('Accelerometer API ' + (sensorStatus.accelerometerAvailable ? 'available' : 'unavailable') +
+                            '; gyroscope capability ' + (sensorStatus.gyroscopeAvailable ? 'available' : 'unavailable') +
                             '. Waiting for fresh samples.');
                         });
                       } else {
