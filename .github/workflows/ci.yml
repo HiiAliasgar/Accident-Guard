@@ -79,7 +79,28 @@ jobs:
           disable-animations: true
           working-directory: android
           script: |
-            set +e; timeout 600s ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace; test_status=$?; adb logcat -d -t 5000 > ../android-emulator-logcat.txt; exit "$test_status"
+            set -e
+            adb wait-for-device
+            package_ready=false
+            for attempt in $(seq 1 60); do
+              if adb shell cmd package list packages >/dev/null 2>&1; then
+                package_ready=true
+                break
+              fi
+              sleep 5
+            done
+            if [ "$package_ready" != true ]; then
+              adb shell service check package || true
+              adb shell getprop | grep -E 'sys.boot_completed|init.svc.system_server' || true
+              adb logcat -d -t 5000 > ../android-emulator-logcat.txt
+              echo "Android package manager did not become available after emulator boot."
+              exit 1
+            fi
+            set +e
+            timeout 600s ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
+            test_status=$?
+            adb logcat -d -t 5000 > ../android-emulator-logcat.txt
+            exit "$test_status"
 
       - name: Upload Android test reports and emulator logs
         if: always()
