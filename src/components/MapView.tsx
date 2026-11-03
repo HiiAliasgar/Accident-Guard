@@ -8,8 +8,8 @@ import { googleMapsService, GOOGLE_MAPS_COCKPIT_STYLE } from '../services/google
 interface MapViewProps {
   latitude: number;
   longitude: number;
-  heading?: number;
-  speedKmH?: number;
+  heading?: number | null;
+  speedKmH?: number | null;
   hospitals?: Hospital[];
   roadAlerts?: RoadAlert[];
   routeCoordinates?: [number, number][];
@@ -53,8 +53,8 @@ const getTileProviders = (mapTilerKey: string): Record<TileLayerTheme, { name: s
 export const MapView: React.FC<MapViewProps> = ({
   latitude,
   longitude,
-  heading = 0,
-  speedKmH = 0,
+  heading = null,
+  speedKmH = null,
   hospitals = [],
   roadAlerts = [],
   routeCoordinates = [],
@@ -65,6 +65,9 @@ export const MapView: React.FC<MapViewProps> = ({
   onEngineToggle,
   onOpenSettings
 }) => {
+  const speedLabel = typeof speedKmH === 'number' ? speedKmH + ' km/h' : 'Speed unavailable';
+  const headingLabel = typeof heading === 'number' ? heading + '°' : 'Heading unavailable';
+
   // Container Refs
   const leafletContainerRef = useRef<HTMLDivElement | null>(null);
   const googleContainerRef = useRef<HTMLDivElement | null>(null);
@@ -252,8 +255,8 @@ export const MapView: React.FC<MapViewProps> = ({
 
     const carHtml = `
       <div class="nav-vehicle-anchor">
-        <div class="nav-heading-cone" style="transform: rotate(${heading}deg);"></div>
-        <div class="nav-vehicle-beacon ${speedKmH > 0 ? 'moving' : 'idle'}">
+        <div class="nav-heading-cone" style="transform: rotate(${heading ?? 0}deg);"></div>
+        <div class="nav-vehicle-beacon ${typeof speedKmH === 'number' && speedKmH > 0 ? 'moving' : 'idle'}">
           <div class="nav-pulse-ring"></div>
           <div class="nav-car-core">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="white">
@@ -276,7 +279,7 @@ export const MapView: React.FC<MapViewProps> = ({
       leafletVehicleMarkerRef.current.setIcon(vehicleIcon);
     } else {
       const marker = L.marker([latitude, longitude], { icon: vehicleIcon, zIndexOffset: 1000 })
-        .bindPopup(`<strong>Active Navigation</strong><br>Speed: ${speedKmH} km/h • Heading: ${heading}°`)
+        .bindPopup(`<strong>Current position</strong><br>${speedLabel} • ${headingLabel}`)
         .addTo(leafletMarkersGroupRef.current);
       leafletVehicleMarkerRef.current = marker;
     }
@@ -496,7 +499,7 @@ export const MapView: React.FC<MapViewProps> = ({
         position: pos,
         map: googleMapRef.current,
         icon: navArrowIcon,
-        title: `Vehicle: ${speedKmH} km/h (${heading}°)`,
+        title: `Current position: ${speedLabel} (${headingLabel})`,
         zIndex: 9999
       });
       googleVehicleMarkerRef.current = marker;
