@@ -68,13 +68,14 @@ jobs:
           ./gradlew assembleDebug testDebugUnitTest --no-daemon --stacktrace
       - name: Run Android emulator smoke test
         uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 18
+        timeout-minutes: 35
         with:
-          api-level: 35
+          api-level: 34
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-boot-timeout: 1200000
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -no-snapshot-save -wipe-data
           disable-animations: true
           working-directory: android
           script: |
