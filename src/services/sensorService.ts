@@ -245,7 +245,10 @@ export class SensorService {
     this.deviceMotionHandler = (event: DeviceMotionEvent) => {
       const receivedAt = Date.now();
       const acc = event.accelerationIncludingGravity || event.acceleration;
-      if (acc) {
+      const hasAcceleration = Boolean(acc && [acc.x, acc.y, acc.z].some(
+        (value) => typeof value === 'number' && Number.isFinite(value)
+      ));
+      if (acc && hasAcceleration) {
         this.currentRawAccel = {
           x: (acc.x ?? 0) / 9.80665,
           y: (acc.y ?? 0) / 9.80665,
