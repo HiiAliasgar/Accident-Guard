@@ -40,6 +40,7 @@ export class SensorService {
   private hasPermission: boolean = false;
   private hardwareListenerAttached: boolean = false;
   private deviceMotionHandler: ((event: DeviceMotionEvent) => void) | null = null;
+  private visibilityHandler: (() => void) | null = null;
   private nativeSensorListener: PluginListenerHandle | null = null;
   private nativeSensorStarted = false;
   private lastHardwareSampleAt: number = 0;
@@ -65,6 +66,16 @@ export class SensorService {
 
   constructor() {
     this.checkHardwareSupport();
+    if (typeof document !== 'undefined') {
+      this.visibilityHandler = () => {
+        if (document.hidden) {
+          this.isSimulated = true;
+          this.detachHardwareListeners();
+          void this.stopNativeSensorStream();
+        }
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
   }
 
   private checkHardwareSupport() {
