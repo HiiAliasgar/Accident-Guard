@@ -34,11 +34,19 @@ const validFrame = {
 
 describe('SensorService native Android bridge', () => {
   let removeListener: ReturnType<typeof vi.fn>;
+  let visibilityCallback: (() => void) | undefined;
+  let visibilityDocument: { hidden: boolean; addEventListener: (name: string, callback: () => void) => void };
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(1000);
     vi.stubGlobal('window', globalThis);
+    visibilityCallback = undefined;
+    visibilityDocument = {
+      hidden: false,
+      addEventListener: (_name, callback) => { visibilityCallback = callback; }
+    };
+    vi.stubGlobal('document', visibilityDocument);
     nativeMock.isNative = true;
     nativeMock.frameListener = null;
     removeListener = vi.fn();
@@ -110,6 +118,18 @@ describe('SensorService native Android bridge', () => {
     vi.advanceTimersByTime(300);
     expect(service.getIsSimulated()).toBe(true);
     unsubscribe();
+  });
+
+  it('stops the native stream when the app is backgrounded', async () => {
+    const service = new SensorService();
+    await service.requestHardwarePermissions();
+    visibilityDocument.hidden = true;
+    visibilityCallback?.();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(nativeMock.stop).toHaveBeenCalledTimes(1);
+    expect(removeListener).toHaveBeenCalledTimes(1);
+    expect(service.getIsSimulated()).toBe(true);
   });
 
   it('stops the native stream and removes the listener when simulation is selected', async () => {
