@@ -39,6 +39,7 @@ export class SensorService {
   private isGyroscopeAvailable: boolean = false;
   private hasPermission: boolean = false;
   private hardwareListenerAttached: boolean = false;
+  private deviceMotionHandler: ((event: DeviceMotionEvent) => void) | null = null;
   private nativeSensorListener: PluginListenerHandle | null = null;
   private nativeSensorStarted = false;
   private lastHardwareSampleAt: number = 0;
@@ -103,6 +104,7 @@ export class SensorService {
     if (sim) {
       this.isSimulated = true;
       this.currentScenario = 'NONE';
+      this.detachHardwareListeners();
       void this.stopNativeSensorStream();
       return;
     }
@@ -215,34 +217,46 @@ export class SensorService {
     this.isSimulated = true;
   }
 
+  private detachHardwareListeners(): void {
+    if (this.deviceMotionHandler && typeof window !== 'undefined') {
+      window.removeEventListener('devicemotion', this.deviceMotionHandler);
+    }
+    this.deviceMotionHandler = null;
+    this.hardwareListenerAttached = false;
+    this.hasPermission = false;
+    this.lastHardwareSampleAt = 0;
+    this.lastGyroSampleAt = 0;
+  }
+
   private attachHardwareListeners() {
     if (this.hardwareListenerAttached) return;
     this.hardwareListenerAttached = true;
-    window.addEventListener('devicemotion', (event) => {
+    this.deviceMotionHandler = (event: DeviceMotionEvent) => {
       const receivedAt = Date.now();
       const acc = event.accelerationIncludingGravity || event.acceleration;
       if (acc) {
-        // Convert to g (1g = 9.80665 m/s²)
         this.currentRawAccel = {
-          x: (acc.x || 0) / 9.80665,
-          y: (acc.y || 0) / 9.80665,
-          z: (acc.z || 9.80665) / 9.80665
+          x: (acc.x ?? 0) / 9.80665,
+          y: (acc.y ?? 0) / 9.80665,
+          z: (acc.z ?? 9.80665) / 9.80665
         };
-      }
-      const rot = event.rotationRate;
-      if (rot) {
-        this.currentRawGyro = {
-          alpha: rot.alpha || 0,
-          beta: rot.beta || 0,
-          gamma: rot.gamma || 0
-        };
-        this.lastGyroSampleAt = receivedAt;
-      }
-      if (acc || rot) {
         this.lastHardwareSampleAt = receivedAt;
         this.isSimulated = false;
       }
-    });
+      const rot = event.rotationRate;
+      if (rot && [rot.alpha, rot.beta, rot.gamma].some((value) => typeof value === 'number' && Number.isFinite(value))) {
+        this.currentRawGyro = {
+          alpha: rot.alpha ?? 0,
+          beta: rot.beta ?? 0,
+          gamma: rot.gamma ?? 0
+        };
+        this.lastGyroSampleAt = receivedAt;
+        this.isGyroscopeAvailable = true;
+      } else {
+        this.lastGyroSampleAt = 0;
+      }
+    };
+    window.addEventListener('devicemotion', this.deviceMotionHandler);
   }
 
   public subscribe(cb: SensorCallback): () => void {
@@ -254,6 +268,7 @@ export class SensorService {
       this.callbacks.delete(cb);
       if (this.callbacks.size === 0) {
         this.stopSampling();
+        this.detachHardwareListeners();
         void this.stopNativeSensorStream();
       }
     };
@@ -336,13 +351,13 @@ export class SensorService {
       x = this.currentRawAccel.x;
       y = this.currentRawAccel.y;
       z = this.currentRawAccel.z;
-      const gyroIsFresh = this.lastGyroSampleAt > 0 && now - this.lastGyroSampleAt <= 250;
+      const gyroIsFresh = this.lastGyroSampleAt > 0 && now - this.lastGyroSampleAt <= this.hardwareFreshnessMs;
       alpha = gyroIsFresh ? this.currentRawGyro.alpha : 0;
       beta = gyroIsFresh ? this.currentRawGyro.beta : 0;
       gamma = gyroIsFresh ? this.currentRawGyro.gamma : 0;
     } else {
       // No permission, unavailable hardware, or stale stream: fall back to clearly labelled simulation.
-      if (!this.isSimulated) this.isSimulated = true;
+      if (!this.isSimulated) { this.isSimulated = true; this.lastHardwareSampleAt = 0; this.lastGyroSampleAt = 0; }
       // Physics Simulation Engine
       this.simTimeSec += 0.02;
       const elapsedScenarioSec = (now - this.scenarioStartTime) / 1000;
