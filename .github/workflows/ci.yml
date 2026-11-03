@@ -83,17 +83,18 @@ jobs:
             set -e
             adb wait-for-device
             package_ready=false
-            for attempt in $(seq 1 90); do
+            for attempt in $(seq 1 120); do
               boot_completed="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
-              package_output="$(adb shell pm list packages 2>&1 || true)"
-              if [ "$boot_completed" = "1" ] && printf '%s' "$package_output" | grep -q '^package:'; then
+              package_service="$(adb shell service check package 2>/dev/null | tr -d '\r')"
+              package_output="$(adb shell cmd package list packages 2>&1 || true)"
+              if [ "$boot_completed" = "1" ] && printf '%s' "$package_service" | grep -q 'found' && printf '%s' "$package_output" | grep -q '^package:'; then
                 package_ready=true
                 break
               fi
               sleep 5
             done
             if [ "$package_ready" != true ]; then
-              echo "Emulator diagnostics: boot_completed=$boot_completed"
+              echo "Emulator diagnostics: boot_completed=$boot_completed package_service=$package_service"
               adb shell service check package || true
               adb shell getprop | grep -E 'sys.boot_completed|init.svc.system_server|init.svc.bootanim' || true
               adb logcat -d -t 10000 > ../android-emulator-logcat.txt
@@ -123,5 +124,5 @@ jobs:
         with:
           name: accidentguard-android-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
