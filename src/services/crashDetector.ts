@@ -22,12 +22,12 @@ export const DEFAULT_THRESHOLDS: DetectionThresholds = {
   stillnessDurationSec: 3.0,
 
   /**
-   * STILLNESS VARIANCE THRESHOLD (0.25g):
+   * STILLNESS VARIANCE THRESHOLD (0.25 g²):
    * Rationale: Quantifies acceleration fluctuations during the post-impact window.
-   * If variance is < 0.25g, the device is immobilized (consistent with a crashed car).
-   * If variance is > 0.25g, active movement/handling is ongoing -> dismiss as false alarm.
+   * If variance is < 0.25 g², acceleration magnitude fluctuates less in the sampled window; this does not prove vehicle immobilisation.
+   * Higher variance may indicate movement or vibration; this experimental heuristic cannot reliably classify the event.
    */
-  stillnessVarianceG: 0.25,
+  stillnessVarianceG2: 0.25,
 
   /**
    * GYROSCOPE TUMBLING THRESHOLD (180 deg/s):
@@ -76,6 +76,8 @@ export class CrashDetectionEngine {
   // Countdown timer tracking
   private countdownRemaining: number = 15;
   private countdownTimerId: number | null = null;
+  private isFinalizingIncident = false;
+  private incidentGeneration = 0;
 
   // Event callbacks
   private onStateChangeListeners: Set<StateChangeCallback> = new Set();
@@ -129,7 +131,8 @@ export class CrashDetectionEngine {
    */
   public processSensorFrame(point: SensorDataPoint) {
     // 1. Insert into circular ring buffer (O(1) complexity, zero heap allocation)
-    this.ringBuffer[this.ringHead] = point;
+    // Snapshot each frame: sensor services may reuse mutable objects in future implementations.
+    this.ringBuffer[this.ringHead] = { ...point };
     this.ringHead = (this.ringHead + 1) % this.bufferCapacity;
     if (this.ringCount < this.bufferCapacity) {
       this.ringCount++;
@@ -201,16 +204,19 @@ export class CrashDetectionEngine {
           const postImpactMinTimestamp = this.impactTimestamp + 400;
           const variance = this.calculateRingBufferVariance(windowSampleCount, postImpactMinTimestamp);
 
-          // Check if vehicle stopped (variance < stillnessVarianceG)
-          const isStationary = variance <= this.thresholds.stillnessVarianceG;
+          // Check if vehicle stopped (variance < stillnessVarianceG2)
+          const isStationary = variance <= this.thresholds.stillnessVarianceG2;
           // Check if gyro registered meaningful tumbling or if impact was high enough to warrant confirmation
           const registeredTumble = this.peakGyroRecorded >= (this.thresholds.gyroTumbleThresholdDegPerSec * 0.7);
 
+          // Insufficient samples are not evidence of stillness or of a false alarm.
+          // Keep collecting until a complete post-impact window is available.
+          if (!Number.isFinite(variance)) break;
+
           if (isStationary && registeredTumble) {
-            // High confidence crash detected -> Start Countdown
+            // Experimental crash candidate -> user confirmation countdown.
             this.startEmergencyCountdown();
           } else {
-            // False positive rejection! (User dropped phone and picked it up, or continued motion)
             this.recordRejectedIncident(variance);
           }
         }
@@ -230,7 +236,7 @@ export class CrashDetectionEngine {
    * Uses two-pass algorithm: first pass computes mean, second computes sum-of-squared-diffs.
    */
   private calculateRingBufferVariance(count: number, minTimestamp?: number): number {
-    if (count < 2) return 0;
+    if (count < 2) return Number.NaN;
 
     // Pass 1: compute mean in-place
     let sum = 0;
@@ -244,7 +250,7 @@ export class CrashDetectionEngine {
         validCount++;
       }
     }
-    if (validCount < 2) return 0;
+    if (validCount < 2) return Number.NaN;
     const mean = sum / validCount;
 
     // Pass 2: compute sum of squared deviations in-place
@@ -284,6 +290,33 @@ export class CrashDetectionEngine {
     }, 1000);
   }
 
+  /** Confirm a candidate immediately for the emergency review screen.
+   * This records a local incident only; it does not contact emergency services.
+   */
+  public confirmEmergencyImmediately(): void {
+    if (this.currentState !== 'IMPACT_DETECTED' && this.currentState !== 'CONFIRMING') return;
+    void this.finishCountdownAndTriggerAlert();
+  }
+
+  /** Reset detector state after the user has reviewed an incident. History is retained. */
+  public resetAfterIncident(): void {
+    this.incidentGeneration += 1;
+    if (this.countdownTimerId !== null) {
+      clearInterval(this.countdownTimerId);
+      this.countdownTimerId = null;
+    }
+    emergencyAudio.stopSiren();
+    this.isFinalizingIncident = false;
+    this.countdownRemaining = this.thresholds.countdownDurationSec;
+    this.impactTimestamp = 0;
+    this.peakGRecorded = 0;
+    this.peakGyroRecorded = 0;
+    this.ringBuffer.fill(null);
+    this.ringHead = 0;
+    this.ringCount = 0;
+    this.setState('NORMAL');
+  }
+
   /**
    * User pressed "I'M OK - CANCEL"
    */
@@ -295,16 +328,19 @@ export class CrashDetectionEngine {
     emergencyAudio.stopSiren();
     emergencyAudio.playCancelChime();
 
+    this.incidentGeneration += 1;
     this.countdownRemaining = this.thresholds.countdownDurationSec;
+    this.isFinalizingIncident = false;
     const cancelledRecord: IncidentRecord = {
       id: `event-${Date.now()}`,
       timestamp: Date.now(),
       peakG: this.peakGRecorded,
       peakRotation: this.peakGyroRecorded,
-      location: { lat: 37.7749, lng: -122.4194 },
+      // Zero coordinates mean unavailable; never substitute a demo city.
+      location: { lat: 0, lng: 0 },
       classification: 'FALSE_ALARM_USER_CANCELLED',
       dispatchedTo: [],
-      notes: `Alert aborted by user pressing "I'm OK" during the ${this.thresholds.countdownDurationSec}s countdown window.`
+      notes: `Alert aborted by user pressing "I'm OK" during the ${this.thresholds.countdownDurationSec}s countdown window. Location was not captured for this cancelled event.`
     };
     this.incidentHistory.unshift(cancelledRecord);
     this.setState('NORMAL', cancelledRecord);
@@ -314,6 +350,10 @@ export class CrashDetectionEngine {
    * Countdown elapsed without user cancellation: lock location and dispatch
    */
   private async finishCountdownAndTriggerAlert() {
+    // The countdown callback and immediate-confirm action can race. Finalize once.
+    if (this.isFinalizingIncident || this.currentState === 'ALERT_TRIGGERED' || this.currentState === 'DISPATCHED') return;
+    this.isFinalizingIncident = true;
+    const generation = ++this.incidentGeneration;
     if (this.countdownTimerId !== null) {
       clearInterval(this.countdownTimerId);
       this.countdownTimerId = null;
@@ -323,7 +363,9 @@ export class CrashDetectionEngine {
     let coords;
     try {
       coords = await getCurrentCoordinates();
+      if (generation !== this.incidentGeneration) return;
     } catch {
+      if (generation !== this.incidentGeneration) return;
       // Do not present guessed/demo coordinates as a live accident location.
       const locationUnavailableRecord: IncidentRecord = {
         id: `incident-${Date.now()}`,
@@ -351,11 +393,13 @@ export class CrashDetectionEngine {
         lat: coords.latitude,
         lng: coords.longitude,
         accuracy: coords.accuracy,
-        address: nearestHospital.address
+        ...(nearestHospital ? { address: nearestHospital.address } : {})
       },
       classification: this.peakGyroRecorded > 300 ? 'ROLLOVER' : 'SEVERE_COLLISION',
-      dispatchedTo: [nearestHospital.name, nearestHospital.phone, '+1 (555) 911-0199'],
-      notes: `Critical impact verified (${this.peakGRecorded.toFixed(1)}g). Automated emergency response initiated.`
+      // This prototype does not contact emergency services. Never fabricate recipients
+      // or claim that dispatch occurred merely because a local incident was recorded.
+      dispatchedTo: [],
+      notes: `Potential crash candidate recorded (${this.peakGRecorded.toFixed(1)}g). GPS location captured. No emergency service or contact was automatically notified by this prototype.`
     };
 
     this.incidentHistory.unshift(incident);
@@ -381,16 +425,12 @@ export class CrashDetectionEngine {
       timestamp: this.impactTimestamp,
       peakG: this.peakGRecorded,
       peakRotation: this.peakGyroRecorded,
-      location: { lat: 37.7749, lng: -122.4194 },
+      // Location is deliberately unavailable here rather than a fabricated San Francisco fix.
+      location: { lat: 0, lng: 0 },
       classification: 'FALSE_ALARM_STILLNESS_FAILED',
       dispatchedTo: [],
-      notes: `Impact of ${this.peakGRecorded.toFixed(1)}g detected, but post-impact movement variance (${variance.toFixed(2)}g) indicated continued device handling or motion. False alarm dismissed.`
+      notes: `Impact of ${this.peakGRecorded.toFixed(1)}g detected, but post-impact movement variance (${variance.toFixed(2)}g²) did not satisfy the experimental confirmation rule. Event rejected. Location was not captured.`
     };
-
-    // Non-blocking GPS update for the record
-    getCurrentCoordinates().then((coords) => {
-      rejectedRecord.location = { lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy };
-    }).catch(() => { /* keep fallback coords */ });
 
     this.incidentHistory.unshift(rejectedRecord);
     this.setState('NORMAL', rejectedRecord);

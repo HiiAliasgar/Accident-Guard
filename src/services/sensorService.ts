@@ -1,5 +1,28 @@
 // High-frequency (~50Hz) Sensor Telemetry Manager with Real Hardware & Physics Simulation support
 import { SensorDataPoint, SimulationScenario } from '../types';
+import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
+
+interface NativeSensorFrame {
+  x: number;
+  y: number;
+  z: number;
+  alpha: number;
+  beta: number;
+  gamma: number;
+  monotonicTimestampMs: number;
+}
+
+interface NativeSensorBridgePlugin {
+  start(options: { samplingPeriodUs: number }): Promise<{
+    accelerometerAvailable: boolean;
+    gyroscopeAvailable: boolean;
+    backgroundMonitoring: boolean;
+  }>;
+  stop(): Promise<{ stopped: boolean }>;
+  addListener(eventName: 'sensorFrame', listener: (frame: NativeSensorFrame) => void): Promise<PluginListenerHandle>;
+}
+
+const NativeSensorBridge = registerPlugin<NativeSensorBridgePlugin>('NativeSensorBridge');
 
 /** Pure arithmetic rounding — avoids parseFloat(toFixed()) string allocation in hot loops */
 const round3 = (v: number): number => Math.round(v * 1000) / 1000;
@@ -14,7 +37,10 @@ class SensorService {
   private isHardwareAvailable: boolean = false;
   private hasPermission: boolean = false;
   private hardwareListenerAttached: boolean = false;
+  private nativeSensorListener: PluginListenerHandle | null = null;
+  private nativeSensorStarted = false;
   private lastHardwareSampleAt: number = 0;
+  private lastGyroSampleAt: number = 0;
   private readonly hardwareFreshnessMs = 2000;
 
   // Real sensor state cache
@@ -31,19 +57,8 @@ class SensorService {
   private isAdaptiveSampling: boolean = true;
   private isPowerSaver: boolean = false;
 
-  // Pre-allocated object to eliminate garbage collection allocations in 50Hz loop
-  private reusableSample: SensorDataPoint = {
-    timestamp: 0,
-    x: 0,
-    y: 0,
-    z: 1,
-    magnitude: 1,
-    dynamicAcceleration: 0,
-    alpha: 0,
-    beta: 0,
-    gamma: 0,
-    rotationMagnitude: 0
-  };
+  // Each emitted frame is immutable-by-ownership: consumers may safely retain it
+  // in ring buffers and incident history without later samples mutating old data.
 
   constructor() {
     this.checkHardwareSupport();
@@ -72,6 +87,7 @@ class SensorService {
     if (sim) {
       this.isSimulated = true;
       this.currentScenario = 'NONE';
+      void this.stopNativeSensorStream();
       return;
     }
     // Keep the UI honest while the permission request is pending. Switch to hardware
@@ -87,13 +103,62 @@ class SensorService {
   public async requestHardwarePermissions(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
 
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+      try {
+        if (!this.nativeSensorListener) {
+          this.nativeSensorListener = await NativeSensorBridge.addListener('sensorFrame', (frame) => {
+            if (![frame.x, frame.y, frame.z, frame.alpha, frame.beta, frame.gamma].every(Number.isFinite)) return;
+            // Android accelerometer values include gravity and are reported in m/s².
+            this.currentRawAccel = {
+              x: frame.x / 9.80665,
+              y: frame.y / 9.80665,
+              z: frame.z / 9.80665
+            };
+            // Gyroscope values are converted to degrees/second in the native bridge.
+            this.currentRawGyro = {
+              alpha: frame.alpha,
+              beta: frame.beta,
+              gamma: frame.gamma
+            };
+            this.lastGyroSampleAt = Date.now();
+            this.lastHardwareSampleAt = Date.now();
+            this.isSimulated = false;
+          });
+        }
+
+        const status = await NativeSensorBridge.start({ samplingPeriodUs: 20000 });
+        this.nativeSensorStarted = true;
+        this.isHardwareAvailable = status.accelerometerAvailable;
+        this.hasPermission = status.accelerometerAvailable;
+        if (!status.accelerometerAvailable) {
+          this.isSimulated = true;
+          await this.stopNativeSensorStream();
+          return false;
+        }
+        // Do not label the stream as hardware until the first valid native frame arrives.
+        this.isSimulated = true;
+        return true;
+      } catch (err) {
+        console.warn('Native Android sensor bridge failed:', err);
+        this.isSimulated = true;
+        this.hasPermission = false;
+        this.isHardwareAvailable = false;
+        if (this.nativeSensorStarted) {
+          await this.stopNativeSensorStream();
+        } else {
+          this.nativeSensorListener?.remove();
+          this.nativeSensorListener = null;
+        }
+        return false;
+      }
+    }
+
     if (!('DeviceMotionEvent' in window) || typeof DeviceMotionEvent === 'undefined') {
       this.isHardwareAvailable = false;
       this.isSimulated = true;
       return false;
     }
     this.isHardwareAvailable = true;
-    // iOS 13+ requires explicit permission request
     const DeviceMotionEventWithPermission = DeviceMotionEvent as unknown as {
       requestPermission?: () => Promise<'granted' | 'denied'>;
     };
@@ -110,12 +175,25 @@ class SensorService {
         console.warn('Sensor permission error:', err);
       }
       return false;
-    } else {
-      // Non-iOS or standard Android browser
-      this.hasPermission = true;
-      this.attachHardwareListeners();
-      return true;
     }
+
+    this.hasPermission = true;
+    this.attachHardwareListeners();
+    return true;
+  }
+
+  private async stopNativeSensorStream(): Promise<void> {
+    if (!this.nativeSensorStarted) return;
+    this.nativeSensorStarted = false;
+    try {
+      await NativeSensorBridge.stop();
+    } catch (err) {
+      console.warn('Unable to stop native sensor stream:', err);
+    }
+    this.nativeSensorListener?.remove();
+    this.nativeSensorListener = null;
+    this.hasPermission = false;
+    this.isSimulated = true;
   }
 
   private attachHardwareListeners() {
@@ -139,6 +217,7 @@ class SensorService {
           beta: rot.beta || 0,
           gamma: rot.gamma || 0
         };
+        this.lastGyroSampleAt = receivedAt;
       }
       if (acc || rot) {
         this.lastHardwareSampleAt = receivedAt;
@@ -156,6 +235,7 @@ class SensorService {
       this.callbacks.delete(cb);
       if (this.callbacks.size === 0) {
         this.stopSampling();
+        void this.stopNativeSensorStream();
       }
     };
   }
@@ -187,6 +267,8 @@ class SensorService {
     this.currentScenario = scenario;
     this.scenarioStartTime = Date.now();
     this.isSimulated = true;
+    // Explicit test scenarios must not be mixed with live Android sensor frames.
+    void this.stopNativeSensorStream();
 
     // Burst mode optimization: when an impact occurs, upsample to 60Hz for maximum resolution
     if (this.isAdaptiveSampling) {
@@ -235,9 +317,10 @@ class SensorService {
       x = this.currentRawAccel.x;
       y = this.currentRawAccel.y;
       z = this.currentRawAccel.z;
-      alpha = this.currentRawGyro.alpha;
-      beta = this.currentRawGyro.beta;
-      gamma = this.currentRawGyro.gamma;
+      const gyroIsFresh = this.lastGyroSampleAt > 0 && now - this.lastGyroSampleAt <= 250;
+      alpha = gyroIsFresh ? this.currentRawGyro.alpha : 0;
+      beta = gyroIsFresh ? this.currentRawGyro.beta : 0;
+      gamma = gyroIsFresh ? this.currentRawGyro.gamma : 0;
     } else {
       // No permission, unavailable hardware, or stale stream: fall back to clearly labelled simulation.
       if (!this.isSimulated) this.isSimulated = true;
@@ -368,19 +451,21 @@ class SensorService {
     const dynamicAcceleration = Math.abs(magnitude - 1.0);
     const rotationMagnitude = Math.sqrt(alpha * alpha + beta * beta + gamma * gamma);
 
-    // OPTIMIZATION: Mutate pre-allocated object (zero GC pressure in 50Hz loop)
-    const s = this.reusableSample;
-    s.timestamp = now;
-    s.x = round3(x);
-    s.y = round3(y);
-    s.z = round3(z);
-    s.magnitude = round3(magnitude);
-    s.dynamicAcceleration = round3(dynamicAcceleration);
-    s.alpha = round1(alpha);
-    s.beta = round1(beta);
-    s.gamma = round1(gamma);
-    s.rotationMagnitude = round1(rotationMagnitude);
-    return s;
+    // Return a fresh frame. Reusing one mutable object corrupts retained history
+    // because downstream ring buffers otherwise store references to the same object.
+    return {
+      // performance.now() is monotonic; wall-clock changes cannot reorder detector frames.
+      timestamp: typeof performance !== 'undefined' ? performance.now() : now,
+      x: round3(x),
+      y: round3(y),
+      z: round3(z),
+      magnitude: round3(magnitude),
+      dynamicAcceleration: round3(dynamicAcceleration),
+      alpha: round1(alpha),
+      beta: round1(beta),
+      gamma: round1(gamma),
+      rotationMagnitude: round1(rotationMagnitude)
+    };
   }
 }
 

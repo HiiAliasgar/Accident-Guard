@@ -1,4 +1,4 @@
-// Main Application Shell for AccidentGuard: Google Maps Navigation, Road Speed & Hazards HUD, and Direct Hospital Dispatch
+// Main Application Shell for AccidentGuard: navigation, road telemetry, and emergency alert review
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   SystemStatus, 
@@ -14,11 +14,10 @@ import {
 } from './types';
 import { sensorService } from './services/sensorService';
 import { crashDetector, DEFAULT_THRESHOLDS } from './services/crashDetector';
-import { getCurrentCoordinates, DEFAULT_HOSPITALS, getSortedHospitals, Coordinates } from './services/locationService';
+import { getCurrentCoordinates, Coordinates } from './services/locationService';
 import { navigationService, DEFAULT_ROUTE_COORDINATES } from './services/navigationService';
 
 // Subcomponents
-import { CockpitHUD } from './components/CockpitHUD';
 import { SensorGraph } from './components/SensorGraph';
 import { GForceMeter } from './components/GForceMeter';
 import { AlertScreen } from './components/AlertScreen';
@@ -205,16 +204,18 @@ export const App: React.FC = () => {
     crashDetector.cancelAlarmByUser();
   }, []);
 
-  // Immediate dispatch (skip countdown)
+  // Open emergency review immediately. This records a local incident; it does not dispatch.
   const handleTriggerImmediateDispatch = useCallback(() => {
-    setStatus('DISPATCHED');
+    crashDetector.confirmEmergencyImmediately();
   }, []);
 
-  // Reset from dispatch back to normal
+  // Reset both the UI and detector state; retain the incident history.
   const handleResetToNormal = useCallback(() => {
+    crashDetector.resetAfterIncident();
     setStatus('NORMAL');
     setCurrentIncident(null);
-  }, []);
+    setCountdownRemaining(thresholds.countdownDurationSec);
+  }, [thresholds.countdownDurationSec]);
 
   // Audio mute toggle (functional updater avoids isMuted dependency)
   const handleToggleMute = useCallback(() => {
@@ -258,14 +259,31 @@ export const App: React.FC = () => {
 
   const nearestHospital = hospitals[0] || null;
 
+  const handleRefreshLocation = useCallback(async () => {
+    setLocationError('Refreshing device location…');
+    try {
+      const position = await getCurrentCoordinates();
+      setCoords(position);
+      setLocationError('');
+    } catch (error) {
+      setCoords(null);
+      setLocationError(error instanceof Error ? error.message : 'Unable to obtain device location.');
+    }
+  }, []);
+
   // Helper status color and text badge (memoized to avoid re-computation on unrelated renders)
   const statusBadge = useMemo(() => {
     switch (status) {
       case 'NORMAL':
-        return (
-          <div className="status-pill safe">
+        return isSimulated ? (
+          <div className="status-pill warning" role="status">
+            <span className="pulse-dot bg-amber-400"></span>
+            <span>SIMULATION • NOT LIVE MONITORING</span>
+          </div>
+        ) : (
+          <div className="status-pill safe" role="status">
             <span className="pulse-dot bg-emerald-400"></span>
-            <span>SYSTEM MONITORING • ROAD SAFE</span>
+            <span>DEVICE SENSORS ACTIVE • EXPERIMENTAL</span>
           </div>
         );
       case 'IMPACT_DETECTED':
@@ -287,11 +305,11 @@ export const App: React.FC = () => {
         return (
           <div className="status-pill danger">
             <span className="pulse-dot bg-red-500"></span>
-            <span>TRAUMA DISPATCH ACTIVE</span>
+            <span>POTENTIAL CRASH RECORDED — NO DISPATCH</span>
           </div>
         );
     }
-  }, [status, countdownRemaining]);
+  }, [status, countdownRemaining, isSimulated]);
 
   return (
     <div className={`app-root ${isMobileFrame ? 'mobile-framed' : 'full-width'}`}>
@@ -303,7 +321,7 @@ export const App: React.FC = () => {
           </div>
           <div>
             <h1 className="brand-name">AccidentGuard</h1>
-            <span className="brand-version">Automotive Telemetry & Hospital SOS</span>
+            <span className="brand-version">Experimental Crash Detection • Android</span>
           </div>
         </div>
 
@@ -324,10 +342,10 @@ export const App: React.FC = () => {
             type="button"
             className="toolbar-btn"
             onClick={() => setShowMLModal(true)}
-            title="View Algorithm & ML Architecture Specs"
+            title="View current detection implementation and limitations"
           >
             <Cpu size={16} className="text-cyan-400 mr-1.5" />
-            <span className="hidden sm:inline">ML Specs</span>
+            <span className="hidden sm:inline">Detection Info</span>
           </button>
 
           {/* Mobile Frame Toggle */}
@@ -374,6 +392,40 @@ export const App: React.FC = () => {
             {/* 1. COCKPIT NAVIGATION & GOOGLE MAPS HUD */}
             {currentTab === 'navigation' && (
               <div className="cockpit-view-content">
+                <section className="dashboard-welcome">
+                  <div className="dashboard-welcome-copy">
+                    <span className="dashboard-eyebrow">ACCIDENTGUARD / SAFETY CONSOLE</span>
+                    <h2>Stay aware.<br /><em>Get help faster.</em></h2>
+                    <p>Experimental crash-sensing dashboard. Verify sensor and location status before every test.</p>
+                  </div>
+                  <div className={'dashboard-mode ' + (isSimulated ? 'mode-demo' : 'mode-device')}>
+                    <span className="dashboard-mode-dot" />
+                    {isSimulated ? 'DEMO DATA' : 'DEVICE INPUT'}
+                  </div>
+                </section>
+                <section className="dashboard-metrics" aria-label="System status">
+                  <article className="dashboard-metric">
+                    <span className="dashboard-metric-label">Sensor input</span>
+                    <strong>{isSimulated ? 'Simulation' : 'Device'}</strong>
+                    <small>{sensorService.getSamplingRate()} Hz target rate</small>
+                  </article>
+                  <article className="dashboard-metric">
+                    <span className="dashboard-metric-label">GPS status</span>
+                    <strong>{coords ? 'Available' : 'Unavailable'}</strong>
+                    <small>{coords ? '±' + Math.round(coords.accuracy ?? 0) + ' m accuracy' : 'Permission / fix required'}</small>
+                  </article>
+                  <article className="dashboard-metric">
+                    <span className="dashboard-metric-label">Incidents</span>
+                    <strong>{incidents.length}</strong>
+                    <small>Locally recorded events</small>
+                  </article>
+                </section>
+                <div className="dashboard-section-heading">
+                  <div><span className="dashboard-eyebrow">LIVE POSITION</span><h3>Location overview</h3></div>
+                  <button type="button" className="dashboard-refresh-button" onClick={handleRefreshLocation}>
+                    <Navigation size={14} /> Refresh GPS
+                  </button>
+                </div>
                 {/* Show the map only after the device has supplied a real location. */}
                 <div className="cockpit-map-card">
                   {coords ? (
@@ -383,7 +435,7 @@ export const App: React.FC = () => {
                       longitude={coords.longitude}
                       heading={0}
                       speedKmH={0}
-                      hospitals={[]}
+                      hospitals={hospitals}
                       roadAlerts={[]}
                       routeCoordinates={[]}
                       height="320px"
@@ -397,16 +449,15 @@ export const App: React.FC = () => {
                     <div role="status" className="p-5 text-sm text-slate-300">
                       <h2 className="text-base font-semibold text-white">Current location unavailable</h2>
                       <p className="mt-2">{locationError}</p>
-                      <p className="mt-2">Grant location permission and reload to show your position. Route distance, ETA, road name, traffic and vehicle speed are unavailable until a real provider supplies them.</p>
-                      <a className="inline-block mt-3 underline" href="https://www.google.com/maps" target="_blank" rel="noreferrer">Open Google Maps</a>
+                      <p className="mt-2">Allow location access, then refresh GPS. Route distance, ETA, traffic and vehicle speed are unavailable until a real provider is connected.</p>
+                      <button type="button" className="dashboard-refresh-button mt-4" onClick={handleRefreshLocation}>Try location again</button>
                     </div>
                   )}
                 </div>
 
-                <section className="p-4 rounded-xl border border-slate-700 bg-slate-900/60" aria-label="Navigation status">
-                  <h2 className="font-semibold text-white">Navigation provider not configured</h2>
-                  <p className="mt-2 text-sm text-slate-300">Live road routing is not currently connected. Route distance, ETA, speed limits, live traffic and road hazards are intentionally unavailable instead of simulated.</p>
-                  <p className="mt-2 text-xs text-amber-300">Crash detection is experimental and has not been safety-validated.</p>
+                <section className="dashboard-provider-note" aria-label="Navigation status">
+                  <div className="dashboard-provider-icon"><MapPin size={18} /></div>
+                  <div><h3>Navigation not connected</h3><p>Live routing, traffic, speed limits and road hazards are not available yet. No route or speed values are fabricated.</p></div>
                 </section>
 
                 {/* Quick Crash Simulator Launcher Bar */}
@@ -448,7 +499,7 @@ export const App: React.FC = () => {
                 <section className="p-4 rounded-xl border border-slate-700 bg-slate-900/60" aria-label="Sensor source mode">
                   <h2 className="font-semibold text-white">Sensor source</h2>
                   <p className="mt-1 text-sm text-slate-300">
-                    Current source: <strong>{isSimulated ? 'SIMULATION / TEST DATA' : 'DEVICE MOTION EVENTS'}</strong>
+                    Current source: <strong>{isSimulated ? 'SIMULATION / TEST DATA' : 'DEVICE SENSOR STREAM'}</strong>
                   </p>
                   <p className="mt-1 text-sm text-slate-300">{sensorModeNotice}</p>
                   <button
@@ -456,13 +507,13 @@ export const App: React.FC = () => {
                     className="toolbar-btn mt-3"
                     onClick={() => {
                       if (isSimulated) {
-                        setSensorModeNotice('Requesting motion permission. Real mode will activate only after a fresh device event is received.');
+                        setSensorModeNotice('Starting the device sensor stream. Hardware mode activates only after a fresh accelerometer reading is received.');
                         void sensorService.requestHardwarePermissions().then((granted) => {
                           if (!granted) {
-                            setSensorModeNotice('Motion permission or compatible sensors unavailable. Simulation remains active; crash detection is not automatic in this mode.');
+                            setSensorModeNotice('Native sensor bridge unavailable or accelerometer missing. Simulation remains active; live crash monitoring is unavailable.');
                             return;
                           }
-                          setSensorModeNotice('Permission granted. Waiting for a fresh motion sample; simulation remains labelled until one arrives.');
+                          setSensorModeNotice('Sensor stream started. Waiting for a fresh hardware sample; simulation remains labelled until one arrives.');
                         });
                       } else {
                         sensorService.setIsSimulated(true);
@@ -473,7 +524,7 @@ export const App: React.FC = () => {
                   >
                     {isSimulated ? 'Enable device sensors' : 'Switch to simulation mode'}
                   </button>
-                  <p className="mt-2 text-xs text-amber-300">This prototype is not safety-certified. Browser sensor events may stop in the background.</p>
+                  <p className="mt-2 text-xs text-amber-300">Experimental only: this native bridge runs while the app process is active. Background monitoring needs a separately validated Android foreground service.</p>
                 </section>
 
                 {/* Real-time Oscilloscope Waveform */}
@@ -500,7 +551,7 @@ export const App: React.FC = () => {
                 <div className="map-banner mb-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-sm font-bold text-white">Trauma Centers & EMS Coverage</h2>
+                      <h2 className="text-sm font-bold text-white">Location & nearby facilities</h2>
                       <p className="text-xs text-slate-400">
                         {coords ? `GPS: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)} (accuracy ±${Math.round(coords.accuracy ?? 0)}m)` : `GPS unavailable: ${locationError}`}
                       </p>
@@ -514,7 +565,7 @@ export const App: React.FC = () => {
                     key={`map-hosp-${mapKeyRevision}-${mapEngine}`}
                     latitude={coords.latitude}
                     longitude={coords.longitude}
-                    hospitals={[]}
+                    hospitals={hospitals}
                     roadAlerts={[]}
                     height="260px"
                     zoom={13}
@@ -526,6 +577,14 @@ export const App: React.FC = () => {
                   <p role="status" className="p-4 text-sm text-slate-300">Location unavailable: {locationError}</p>
                 )}
 
+                {hospitals.length === 0 && (
+                  <section className="dashboard-empty-state" role="status">
+                    <div className="dashboard-empty-icon"><HospitalIcon size={22} /></div>
+                    <h3>No verified hospital provider</h3>
+                    <p>There are no hospital records configured. This screen currently shows your location only; it does not identify nearby trauma centres or provide emergency routing.</p>
+                    <button type="button" className="dashboard-refresh-button" onClick={() => setCurrentTab("settings")}>Review map settings</button>
+                  </section>
+                )}
                 <div className="nearby-hospitals-scroll mt-3">
                   {hospitals.map((hosp, idx) => (
                     <div key={hosp.id} className="hospital-card-mini">

@@ -38,8 +38,10 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   onResetToNormal
 }) => {
   const [copied, setCopied] = useState<boolean>(false);
+  const [copyError, setCopyError] = useState<string>('');
   const [voiceSpoken, setVoiceSpoken] = useState<boolean>(false);
   const [isVoiceMuted, setIsVoiceMuted] = useState<boolean>(false);
+  const notificationSent = React.useRef(false);
 
   // These steps document local preparation only; they are not a network transmission.
   const [transmissionSteps] = useState<DispatchTransmissionStatus[]>([
@@ -92,26 +94,18 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
   // Send Browser Web Notification & Speak Emergency Status
   useEffect(() => {
     // 1. Web Notification API
-    if (typeof window !== 'undefined' && 'Notification' in window) {
+    if (!notificationSent.current && typeof window !== 'undefined' && 'Notification' in window) {
+      notificationSent.current = true;
       if (Notification.permission === 'granted') {
         try {
           new Notification('AccidentGuard demo — crash alert preview', {
-            body: `Simulated crash alert: ${peakG.toFixed(1)}g. No emergency service was contacted.`,
+            body: `Potential crash candidate: ${peakG.toFixed(1)}g. No emergency service was contacted.`,
             icon: '/vite.svg',
             requireInteraction: true
           });
         } catch (err) {
           console.warn('Web notification trigger error:', err);
         }
-      } else if (Notification.permission !== 'denied') {
-        Notification.requestPermission().then((permission) => {
-          if (permission === 'granted') {
-            new Notification('AccidentGuard demo — crash alert preview', {
-              body: `Simulated crash alert: ${peakG.toFixed(1)}g. No emergency service was contacted.`,
-              icon: '/vite.svg'
-            });
-          }
-        });
       }
     }
 
@@ -132,10 +126,19 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
     }
   }, [peakG, nearestHospital?.name ?? 'No verified facility selected', voiceSpoken, isVoiceMuted]);
 
-  const handleCopy = () => {
-    navigator.clipboard?.writeText(smsPayload.messageText).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard access is unavailable in this browser.');
+      }
+      await navigator.clipboard.writeText(smsPayload.messageText);
+      setCopied(true);
+      setCopyError('');
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      setCopied(false);
+      setCopyError(error instanceof Error ? error.message : 'Unable to copy the message.');
+    }
   };
 
   const toggleVoiceMute = () => {
@@ -206,12 +209,12 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
               id="btn-direct-call"
             >
               <PhoneCall size={18} />
-              <span>Call verified hospital ({nearestHospital?.phone ?? ''})</span>
+              <span>Call listed facility ({nearestHospital?.phone ?? ''})</span>
             </a>
           ) : (
             <span className="action-btn direct-call-btn" aria-disabled="true">
               <PhoneCall size={18} />
-              <span>No verified hospital number configured</span>
+              <span>No facility phone number listed</span>
             </span>
           )}
 
@@ -304,6 +307,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
           </button>
         </div>
         <pre className="sms-text-content">{smsPayload.messageText}</pre>
+        {copyError && <p className="text-xs text-amber-300 mt-2" role="status">{copyError}</p>}
         <div className="sms-recipients-row">
           <span className="recipients-label">Saved contacts (not automatically notified):</span>
           {smsPayload.recipientNumbers.map((num, idx) => (

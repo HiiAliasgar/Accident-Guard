@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, "improve/**", "rebuild/**"]
+    branches: [main, "improve/**", "rebuild/**", "production/**"]
 
 concurrency:
   group: accident-guard-ci-${{ github.ref }}
@@ -25,7 +25,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
       - name: Run unit tests
         run: npm test
       - name: Type-check and build production bundle
@@ -54,7 +54,7 @@ jobs:
       - name: Install required Android platform and build tools
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Install web dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
       - name: Run unit tests and build web assets
         run: |
           npm test
@@ -78,11 +78,7 @@ jobs:
           disable-animations: true
           working-directory: android
           script: |
-            set +e
-            ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
-            test_status=$?
-            adb logcat -d -t 5000 > ../android-emulator-logcat.txt
-            exit "$test_status"
+            bash -c 'set +e; ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace; test_status=$?; adb logcat -d -t 5000 > ../android-emulator-logcat.txt; exit "$test_status"'
 
       - name: Upload Android test reports and emulator logs
         if: always()

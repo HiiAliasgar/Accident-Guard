@@ -65,6 +65,41 @@ describe('CrashDetectionEngine', () => {
     expect(emergencyAudio.playImpactAlert).toHaveBeenCalledTimes(1);
   });
 
+  it('does not claim emergency dispatch when a candidate is confirmed immediately', async () => {
+    const engine = new CrashDetectionEngine();
+    engine.triggerManualCrashDemo();
+    engine.confirmEmergencyImmediately();
+
+    await Promise.resolve();
+
+    expect(engine.getState()).toBe('ALERT_TRIGGERED');
+    expect(engine.getIncidentHistory()[0]?.dispatchedTo).toEqual([]);
+    expect(engine.getIncidentHistory()[0]?.notes).toContain('No emergency service');
+  });
+
+  it('resets the incident state without deleting history', async () => {
+    const engine = new CrashDetectionEngine();
+    engine.triggerManualCrashDemo();
+    engine.confirmEmergencyImmediately();
+    await Promise.resolve();
+
+    const historyLength = engine.getIncidentHistory().length;
+    engine.resetAfterIncident();
+
+    expect(engine.getState()).toBe('NORMAL');
+    expect(engine.getIncidentHistory()).toHaveLength(historyLength);
+  });
+
+  it('returns unknown variance when the post-impact window has too few samples', () => {
+    const engine = new CrashDetectionEngine();
+    engine.processSensorFrame(frame(1000, 1, 0));
+    const internals = engine as unknown as {
+      calculateRingBufferVariance: (count: number, minTimestamp?: number) => number;
+    };
+
+    expect(internals.calculateRingBufferVariance(1, 2000)).toBeNaN();
+  });
+
   it('cancels countdown, restores normal state and clears timer', () => {
     const engine = new CrashDetectionEngine({ countdownDurationSec: 15 });
     engine.triggerManualCrashDemo();
