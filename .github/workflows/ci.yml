@@ -82,17 +82,20 @@ jobs:
             set -e
             adb wait-for-device
             package_ready=false
-            for attempt in $(seq 1 60); do
-              if adb shell cmd package list packages >/dev/null 2>&1; then
+            for attempt in $(seq 1 90); do
+              boot_completed="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+              package_output="$(adb shell pm list packages 2>&1 || true)"
+              if [ "$boot_completed" = "1" ] && printf '%s' "$package_output" | grep -q '^package:'; then
                 package_ready=true
                 break
               fi
               sleep 5
             done
             if [ "$package_ready" != true ]; then
+              echo "Emulator diagnostics: boot_completed=$boot_completed"
               adb shell service check package || true
-              adb shell getprop | grep -E 'sys.boot_completed|init.svc.system_server' || true
-              adb logcat -d -t 5000 > ../android-emulator-logcat.txt
+              adb shell getprop | grep -E 'sys.boot_completed|init.svc.system_server|init.svc.bootanim' || true
+              adb logcat -d -t 10000 > ../android-emulator-logcat.txt
               echo "Android package manager did not become available after emulator boot."
               exit 1
             fi
