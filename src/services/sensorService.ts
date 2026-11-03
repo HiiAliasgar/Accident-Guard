@@ -10,6 +10,7 @@ interface NativeSensorFrame {
   beta: number;
   gamma: number;
   monotonicTimestampMs: number;
+  gyroscopeFresh?: boolean;
 }
 
 interface NativeSensorBridgePlugin {
@@ -30,18 +31,19 @@ const round1 = (v: number): number => Math.round(v * 10) / 10;
 
 type SensorCallback = (point: SensorDataPoint) => void;
 
-class SensorService {
+export class SensorService {
   private callbacks: Set<SensorCallback> = new Set();
   private timerId: number | null = null;
   private isSimulated: boolean = true;
   private isHardwareAvailable: boolean = false;
+  private isGyroscopeAvailable: boolean = false;
   private hasPermission: boolean = false;
   private hardwareListenerAttached: boolean = false;
   private nativeSensorListener: PluginListenerHandle | null = null;
   private nativeSensorStarted = false;
   private lastHardwareSampleAt: number = 0;
   private lastGyroSampleAt: number = 0;
-  private readonly hardwareFreshnessMs = 2000;
+  private readonly hardwareFreshnessMs = 250;
 
   // Real sensor state cache
   private currentRawAccel = { x: 0, y: 0, z: 9.81 };
@@ -83,6 +85,20 @@ class SensorService {
     return this.isHardwareAvailable;
   }
 
+  public getHardwareStatus() {
+    const lastSampleAgeMs = this.lastHardwareSampleAt > 0 ? Date.now() - this.lastHardwareSampleAt : null;
+    const gyroAgeMs = this.lastGyroSampleAt > 0 ? Date.now() - this.lastGyroSampleAt : null;
+    const active = !this.isSimulated && this.hasPermission && lastSampleAgeMs !== null && lastSampleAgeMs <= this.hardwareFreshnessMs;
+    return {
+      accelerometerAvailable: this.isHardwareAvailable,
+      gyroscopeAvailable: this.isGyroscopeAvailable,
+      gyroscopeActive: active && gyroAgeMs !== null && gyroAgeMs <= this.hardwareFreshnessMs,
+      active,
+      simulated: this.isSimulated,
+      lastSampleAgeMs
+    };
+  }
+
   public setIsSimulated(sim: boolean): void {
     if (sim) {
       this.isSimulated = true;
@@ -115,12 +131,13 @@ class SensorService {
               z: frame.z / 9.80665
             };
             // Gyroscope values are converted to degrees/second in the native bridge.
-            this.currentRawGyro = {
-              alpha: frame.alpha,
-              beta: frame.beta,
-              gamma: frame.gamma
-            };
-            this.lastGyroSampleAt = Date.now();
+            if (this.isGyroscopeAvailable && frame.gyroscopeFresh === true) {
+              this.currentRawGyro = { alpha: frame.alpha, beta: frame.beta, gamma: frame.gamma };
+              this.lastGyroSampleAt = Date.now();
+            } else {
+              this.currentRawGyro = { alpha: 0, beta: 0, gamma: 0 };
+              this.lastGyroSampleAt = 0;
+            }
             this.lastHardwareSampleAt = Date.now();
             this.isSimulated = false;
           });
@@ -129,6 +146,7 @@ class SensorService {
         const status = await NativeSensorBridge.start({ samplingPeriodUs: 20000 });
         this.nativeSensorStarted = true;
         this.isHardwareAvailable = status.accelerometerAvailable;
+        this.isGyroscopeAvailable = status.gyroscopeAvailable;
         this.hasPermission = status.accelerometerAvailable;
         if (!status.accelerometerAvailable) {
           this.isSimulated = true;
@@ -183,16 +201,17 @@ class SensorService {
   }
 
   private async stopNativeSensorStream(): Promise<void> {
-    if (!this.nativeSensorStarted) return;
+    const wasStarted = this.nativeSensorStarted;
     this.nativeSensorStarted = false;
-    try {
-      await NativeSensorBridge.stop();
-    } catch (err) {
-      console.warn('Unable to stop native sensor stream:', err);
+    if (wasStarted) {
+      try { await NativeSensorBridge.stop(); }
+      catch (err) { console.warn('Unable to stop native sensor stream:', err); }
     }
     this.nativeSensorListener?.remove();
     this.nativeSensorListener = null;
     this.hasPermission = false;
+    this.lastHardwareSampleAt = 0;
+    this.lastGyroSampleAt = 0;
     this.isSimulated = true;
   }
 

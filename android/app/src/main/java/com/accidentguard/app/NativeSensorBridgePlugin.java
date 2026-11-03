@@ -96,6 +96,13 @@ public class NativeSensorBridgePlugin extends Plugin implements SensorEventListe
             sensorManager.unregisterListener(this);
         }
         running = false;
+        lastGyroTimestampNanos = 0L;
+        gx = 0f;
+        gy = 0f;
+        gz = 0f;
+        ax = 0f;
+        ay = 0f;
+        az = SensorManager.GRAVITY_EARTH;
     }
 
     @Override
@@ -129,6 +136,7 @@ public class NativeSensorBridgePlugin extends Plugin implements SensorEventListe
         frame.put("alpha", gyroFresh ? gz : 0f);
         frame.put("beta", gyroFresh ? gx : 0f);
         frame.put("gamma", gyroFresh ? gy : 0f);
+        frame.put("gyroscopeFresh", gyroFresh);
         // SensorEvent.timestamp uses the monotonic elapsed-realtime time base.
         frame.put("monotonicTimestampMs", sensorTimestampNanos / 1000000.0);
         notifyListeners("sensorFrame", frame);
