@@ -86,10 +86,19 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
     timestamp
   }) : { recipientNumbers: [], messageText: 'AccidentGuard incident draft. Device location is unavailable. No emergency service has been contacted.', mapsUrl: '' };
 
-  // Demo draft only. No verified hospital recipient is configured.
-  const smsHref = `sms:?body=${encodeURIComponent(smsPayload.messageText)}`;
+  // SMS is only a user-reviewed draft; the app never sends it automatically.
+  const primaryContact = contacts.find((contact) => contact.isPrimary) ?? contacts[0] ?? null;
+  const primaryPhone = primaryContact?.phone.replace(/[^0-9+]/g, '') ?? '';
+  const smsHref = primaryPhone
+    ? 'sms:' + primaryPhone + '?body=' + encodeURIComponent(smsPayload.messageText)
+    : 'sms:?body=' + encodeURIComponent(smsPayload.messageText);
   const hasVerifiedHospitalPhone = Boolean(nearestHospital?.phone && nearestHospital?.phone.trim());
-  const googleMapsHref = coords ? `https://www.google.com/maps?q=${coords.latitude.toFixed(6)},${coords.longitude.toFixed(6)}` : null;
+  const googleMapsHref = coords
+    ? nearestHospital
+      ? 'https://www.google.com/maps/dir/?api=1&origin=' + coords.latitude.toFixed(6) + ',' + coords.longitude.toFixed(6) +
+        '&destination=' + nearestHospital.latitude.toFixed(6) + ',' + nearestHospital.longitude.toFixed(6) + '&travelmode=driving'
+      : 'https://www.google.com/maps/search/hospitals/@' + coords.latitude.toFixed(6) + ',' + coords.longitude.toFixed(6) + ',14z'
+    : null;
 
   // Send Browser Web Notification & Speak Emergency Status
   useEffect(() => {
@@ -199,12 +208,12 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
             id="btn-direct-sms"
           >
             <Send size={18} />
-            <span>Open demo SMS draft — verify before sending</span>
+            <span>{primaryContact ? 'Open SMS draft for ' + primaryContact.name : 'Open SMS draft — choose recipient manually'}</span>
           </a>
 
           {hasVerifiedHospitalPhone ? (
             <a
-              href={`tel:${(nearestHospital?.phone ?? '').replace(/[^0-9+]/g, '')}`}
+              href={'tel:' + (nearestHospital?.phone ?? '').replace(/[^0-9+]/g, '')}
               className="action-btn direct-call-btn"
               id="btn-direct-call"
             >
@@ -228,7 +237,7 @@ export const DispatchScreen: React.FC<DispatchScreenProps> = ({
             onClick={(event) => { if (!googleMapsHref) event.preventDefault(); }}
           >
             <ExternalLink size={18} />
-            <span>{coords ? 'View current device coordinates on Google Maps' : 'Location unavailable'}</span>
+            <span>{coords ? (nearestHospital ? 'Get directions to selected facility' : 'Find nearby hospitals in Google Maps') : 'Location unavailable'}</span>
           </a>
         </div>
       </div>
