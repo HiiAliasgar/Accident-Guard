@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, "improve/**", "rebuild/**", "production/**"]
+    branches: [main, "improve/**"]
 
 concurrency:
   group: accident-guard-ci-${{ github.ref }}
@@ -25,7 +25,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install
       - name: Run unit tests
         run: npm test
       - name: Type-check and build production bundle
@@ -54,7 +54,7 @@ jobs:
       - name: Install required Android platform and build tools
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Install web dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install
       - name: Run unit tests and build web assets
         run: |
           npm test
@@ -62,58 +62,24 @@ jobs:
       - name: Sync Capacitor Android project
         run: npx cap sync android
       - name: Build Android debug APK and run local JVM tests
-        id: android_compile
         run: |
           chmod +x android/gradlew
           cd android
           ./gradlew assembleDebug testDebugUnitTest --no-daemon --stacktrace
-      # Publish the build as soon as compilation succeeds. The emulator smoke test
-      # remains a separate gate and can still fail without blocking APK delivery.
-      - name: Upload debug APK
-        if: steps.android_compile.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: accidentguard-android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 90
-
       - name: Run Android emulator smoke test
         uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 35
+        timeout-minutes: 18
         with:
-          api-level: 34
+          api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          emulator-boot-timeout: 1200000
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -no-snapshot-save -wipe-data
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot-save
           disable-animations: true
           working-directory: android
           script: |
-            set -e
-            adb wait-for-device
-            package_ready=false
-            for attempt in $(seq 1 120); do
-              boot_completed="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
-              package_service="$(adb shell service check package 2>/dev/null | tr -d '\r')"
-              package_output="$(adb shell cmd package list packages 2>&1 || true)"
-              if [ "$boot_completed" = "1" ] && printf '%s' "$package_service" | grep -q 'found' && printf '%s' "$package_output" | grep -q '^package:'; then
-                package_ready=true
-                break
-              fi
-              sleep 5
-            done
-            if [ "$package_ready" != true ]; then
-              echo "Emulator diagnostics: boot_completed=$boot_completed package_service=$package_service"
-              adb shell service check package || true
-              adb shell getprop | grep -E 'sys.boot_completed|init.svc.system_server|init.svc.bootanim' || true
-              adb logcat -d -t 10000 > ../android-emulator-logcat.txt
-              echo "Android package manager did not become available after emulator boot."
-              exit 1
-            fi
             set +e
-            timeout 600s ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
+            ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
             test_status=$?
             adb logcat -d -t 5000 > ../android-emulator-logcat.txt
             exit "$test_status"
@@ -129,3 +95,11 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accidentguard-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
