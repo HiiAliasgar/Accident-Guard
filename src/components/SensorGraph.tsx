@@ -2,7 +2,7 @@
 // OPTIMIZATIONS: Zero-GC Circular Ring Buffer, High-DPI Retina scaling, and RAF throttling
 import React, { useEffect, useRef, useState } from 'react';
 import { SensorDataPoint } from '../types';
-import { Activity, Eye, EyeOff } from 'lucide-react';
+import { Activity, Eye, EyeOff, Pause, Play, RotateCcw } from 'lucide-react';
 
 interface SensorGraphProps {
   currentPoint: SensorDataPoint | null;
@@ -13,6 +13,7 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({
   currentPoint,
   historyLimit = 150 // ~3 seconds of 50Hz data
 }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // OPTIMIZATION: Fixed-capacity circular ring buffer with Float32Array arrays for ultra-fast zero-GC rendering
@@ -26,15 +27,43 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({
 
   const animFrameIdRef = useRef<number | null>(null);
 
+  // Freeze / Pause capability for telemetry inspection
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
+  isPausedRef.current = isPaused;
+
   // Channel toggles
   const [showX, setShowX] = useState(true);
   const [showY, setShowY] = useState(true);
   const [showZ, setShowZ] = useState(true);
   const [showMag, setShowMag] = useState(true);
 
+  // Dynamic canvas size state
+  const [canvasDimensions, setCanvasDimensions] = useState({ width: 640, height: 200 });
+
+  // Responsive dimension tracker via ResizeObserver
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateDimensions = () => {
+      const width = container.clientWidth || 640;
+      setCanvasDimensions({ width, height: 200 });
+    };
+
+    updateDimensions();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateDimensions();
+    });
+    resizeObserver.observe(container);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
   // Push new telemetry sample into typed ring buffers (O(1), zero allocation)
   useEffect(() => {
-    if (currentPoint) {
+    if (currentPoint && !isPausedRef.current) {
       const idx = bufferHeadRef.current;
       xBuf.current[idx] = currentPoint.x;
       yBuf.current[idx] = currentPoint.y;
@@ -57,8 +86,8 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({
 
     // High-DPI Retina scaling
     const dpr = window.devicePixelRatio || 1;
-    const logicalWidth = 640;
-    const logicalHeight = 220;
+    const logicalWidth = canvasDimensions.width;
+    const logicalHeight = canvasDimensions.height;
 
     canvas.width = logicalWidth * dpr;
     canvas.height = logicalHeight * dpr;
@@ -164,17 +193,30 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({
   }, [showX, showY, showZ, showMag, ringCap]);
 
   return (
-    <div className="sensor-graph-container">
+    <div className="sensor-graph-container" ref={containerRef}>
       <div className="sensor-graph-header">
         <div className="sensor-graph-title">
           <Activity size={16} className="text-cyan-400" />
           <span>Real-time Waveform (~50Hz Ring Buffer)</span>
+          {isPaused && (
+            <span className="status-pill warning text-2xs ml-2 py-0.5 px-2">PAUSED</span>
+          )}
         </div>
         <div className="channel-toggles">
           <button
             type="button"
+            className={`channel-pill ${isPaused ? 'active warning' : ''}`}
+            onClick={() => setIsPaused(!isPaused)}
+            title={isPaused ? 'Resume live sensor capture' : 'Freeze waveform for inspection'}
+          >
+            {isPaused ? <Play size={12} className="text-emerald-400" /> : <Pause size={12} className="text-amber-400" />}
+            <span>{isPaused ? 'Resume' : 'Freeze'}</span>
+          </button>
+          <button
+            type="button"
             className={`channel-pill ${showMag ? 'active mag' : ''}`}
             onClick={() => setShowMag(!showMag)}
+            title="Toggle Resultant Acceleration"
           >
             {showMag ? <Eye size={12} /> : <EyeOff size={12} />}
             <span>|a| {currentPoint?.magnitude.toFixed(2) ?? '0.00'}g</span>
@@ -183,6 +225,7 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({
             type="button"
             className={`channel-pill ${showX ? 'active x' : ''}`}
             onClick={() => setShowX(!showX)}
+            title="Toggle X Axis"
           >
             <span>X {currentPoint?.x.toFixed(1) ?? '0.0'}</span>
           </button>
@@ -190,6 +233,7 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({
             type="button"
             className={`channel-pill ${showY ? 'active y' : ''}`}
             onClick={() => setShowY(!showY)}
+            title="Toggle Y Axis"
           >
             <span>Y {currentPoint?.y.toFixed(1) ?? '0.0'}</span>
           </button>
@@ -197,6 +241,7 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({
             type="button"
             className={`channel-pill ${showZ ? 'active z' : ''}`}
             onClick={() => setShowZ(!showZ)}
+            title="Toggle Z Axis"
           >
             <span>Z {currentPoint?.z.toFixed(1) ?? '1.0'}</span>
           </button>
@@ -206,7 +251,7 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({
       <div className="canvas-wrapper">
         <canvas
           ref={canvasRef}
-          style={{ width: '100%', height: '180px' }}
+          style={{ width: '100%', height: '200px' }}
           className="waveform-canvas"
         />
       </div>

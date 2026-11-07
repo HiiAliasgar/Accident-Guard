@@ -108,6 +108,10 @@ export class CrashDetectionEngine {
     return [...this.incidentHistory];
   }
 
+  public clearIncidentHistory(): void {
+    this.incidentHistory = [];
+  }
+
   public onStateChange(cb: StateChangeCallback): () => void {
     this.onStateChangeListeners.add(cb);
     return () => this.onStateChangeListeners.delete(cb);

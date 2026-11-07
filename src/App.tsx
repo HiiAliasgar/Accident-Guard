@@ -250,6 +250,13 @@ export const App: React.FC = () => {
     setCurrentIncident(null);
   }, []);
 
+  // Clear incident logs
+  const handleClearIncidents = useCallback(() => {
+    crashDetector.clearIncidentHistory();
+    setIncidents([]);
+    setCurrentIncident(null);
+  }, []);
+
   // Audio mute toggle (functional updater avoids isMuted dependency)
   const handleToggleMute = useCallback(() => {
     setIsMuted((prev) => {
@@ -557,11 +564,13 @@ export const App: React.FC = () => {
             {/* 5. INCIDENT LOG HISTORY */}
             {currentTab === 'history' && (
               <div className="history-tab-content">
-                <div className="history-header mb-3">
-                  <h2 className="text-sm font-bold text-white">All Recorded Safety Incidents</h2>
-                  <span className="text-xs text-slate-400">{incidents.length} total events</span>
+                <div className="history-header mb-2">
+                  <div>
+                    <h2 className="text-sm font-bold text-white">All Recorded Safety Incidents</h2>
+                    <p className="text-xs text-slate-400">Complete telemetry audit and simulation history</p>
+                  </div>
                 </div>
-                <EventLogList incidents={incidents} />
+                <EventLogList incidents={incidents} onClearHistory={handleClearIncidents} />
               </div>
             )}
           </main>

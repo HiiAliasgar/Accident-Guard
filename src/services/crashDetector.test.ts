@@ -75,4 +75,18 @@ describe('CrashDetectionEngine', () => {
     expect(engine.getState()).toBe('NORMAL');
     expect(engine.getIncidentHistory()[0]?.classification).toBe('FALSE_ALARM_USER_CANCELLED');
   });
+
+  it('updates thresholds and clears incident history', () => {
+    const engine = new CrashDetectionEngine();
+    engine.updateThresholds({ impactThresholdG: 4.5, countdownDurationSec: 20 });
+    expect(engine.getThresholds().impactThresholdG).toBe(4.5);
+    expect(engine.getThresholds().countdownDurationSec).toBe(20);
+
+    engine.triggerManualCrashDemo();
+    engine.cancelAlarmByUser();
+    expect(engine.getIncidentHistory().length).toBeGreaterThan(0);
+
+    engine.clearIncidentHistory();
+    expect(engine.getIncidentHistory().length).toBe(0);
+  });
 });

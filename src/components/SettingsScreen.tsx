@@ -64,6 +64,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [newPhone, setNewPhone] = useState('');
   const [newRelation, setNewRelation] = useState('Family');
 
+  const [isPrimaryNew, setIsPrimaryNew] = useState(false);
+
   const handleCreateContact = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim() || !newPhone.trim()) return;
@@ -73,11 +75,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       name: newName.trim(),
       phone: newPhone.trim(),
       relationship: newRelation,
-      isPrimary: contacts.length === 0
+      isPrimary: contacts.length === 0 || isPrimaryNew
     };
 
     onAddContact(contact);
     setNewName('');
+    setNewPhone('');
+    setIsPrimaryNew(false);
     setShowAddContact(false);
   };
 
@@ -375,17 +379,29 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   required
                 />
               </div>
-              <div className="form-group mb-3">
+              <div className="form-group mb-2">
                 <select
                   value={newRelation}
                   onChange={(e) => setNewRelation(e.target.value)}
                   className="form-input"
                 >
-                  <option value="Family">Family / Spouse</option>
+                  <option value="Family / Spouse">Family / Spouse</option>
                   <option value="Parent">Parent</option>
-                  <option value="Doctor">Personal Physician</option>
-                  <option value="Friend">Friend / Colleague</option>
+                  <option value="Personal Physician">Personal Physician</option>
+                  <option value="Friend / Colleague">Friend / Colleague</option>
+                  <option value="Emergency Contact">Emergency Contact</option>
                 </select>
+              </div>
+              <div className="form-group mb-3 flex items-center">
+                <label className="flex items-center space-x-2 cursor-pointer text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={isPrimaryNew}
+                    onChange={(e) => setIsPrimaryNew(e.target.checked)}
+                    className="accent-cyan-400"
+                  />
+                  <span>Set as primary emergency recipient</span>
+                </label>
               </div>
               <div className="flex space-x-2">
                 <button type="submit" className="form-submit-btn">Save Contact</button>
