@@ -1,54 +1,44 @@
 # AccidentGuard
 
-AccidentGuard is an experimental student project exploring smartphone motion sensors, location display, and simulated crash-alert screens. It is **not a certified safety app** and must not be relied on in a real emergency.
+AccidentGuard is an experimental Android prototype for studying whether smartphone motion sensors can identify a possible high-impact event and start a user-confirmation workflow.
 
-[Live demo](https://hiialiasgar.github.io/Accident-Guard/) · [Source code](https://github.com/HiiAliasgar/Accident-Guard)
+It is a B.Tech major-project prototype, not a certified crash-detection product. Do not rely on it as an emergency service, medical device, vehicle safety system, or replacement for local emergency services.
 
-## Current status
+## Current implementation
 
-- React, TypeScript, Vite, and Capacitor Android shell.
-- Experimental accelerometer/gyroscope crash-detection logic.
-- Foreground location and map display when permission is granted.
-- Simulated alert countdown, siren/voice preview, and an SMS draft for manual review.
-- Unit tests for selected location and crash-detection service behavior.
-- GitHub Actions checks run unit tests and the production web build, and build an Android debug APK, run local JVM tests, and launch the activity in an Android emulator smoke test.
+- React, TypeScript and Vite interface packaged for Android with Capacitor.
+- Native Android SensorManager bridge for foreground accelerometer and gyroscope readings.
+- Explicit sensor activation; simulation remains active until fresh hardware samples arrive.
+- Sensor mode falls back to simulation when hardware samples become stale or the app is backgrounded.
+- Synthetic scenarios for impact, rollover, phone-drop rejection and speed-bump/pothole.
+- Experimental rule-based impact candidate detection using acceleration, rotation and a post-impact variance window.
+- User confirmation countdown with cancellation.
+- Native Capacitor GPS on Android and browser geolocation on web; location is requested after user action.
+- Local incident history and an SMS draft that the user must review and send manually.
+- Map preview with Google Maps hand-off for nearby hospital search or a selected destination.
 
 ## Important limitations
 
-- Crash thresholds are experimental and have not been validated for real-world driving.
-- Hospital entries and coordinates are demonstration fixtures, not verified facilities. No real hospital phone numbers are configured by default.
-- The app does not automatically contact an ambulance, hospital, emergency service, or emergency contact. It has no dispatch backend.
-- Background monitoring and reliable behavior across Android device models have not been established.
-- A passing CI build does not prove crash-detection accuracy or physical-device behavior.
-- Do not test while driving or contact real emergency services as part of testing.
+- Detection thresholds have not been validated against a representative real-world crash dataset.
+- A phone drop, pothole, hard braking, phone orientation or unusual movement can cause false positives or missed events.
+- The detector is heuristic-based. The scripts in ml/ are exploratory and are not connected to the live detection path.
+- Monitoring is foreground-only. A validated Android foreground service is not implemented.
+- The app does not automatically send SMS, call contacts, contact hospitals or contact emergency services.
+- No verified hospital dataset or in-app road-routing provider is configured by default. The app must not invent a hospital, road name, route or ETA.
+- Debug APKs are for controlled testing, not Play Store release.
 
 ## Development
 
-Requirements: Node.js and npm. Android builds also require the Android SDK and a supported JDK.
+Requirements: Node.js 22, Java 21 and Android SDK.
 
-```bash
-git clone https://github.com/HiiAliasgar/Accident-Guard.git
-cd Accident-Guard
-npm install
-npm test
-npm run build
-npx cap sync android
-```
+Run npm install, npm run dev, npm test, npm run build and npm run build:android. Then run npx cap sync android. In the android directory, run ./gradlew assembleDebug testDebugUnitTest.
 
-To open the Android project in Android Studio:
+The debug APK is generated at android/app/build/outputs/apk/debug/app-debug.apk.
 
-```bash
-npx cap open android
-```
+## Safe test plan
 
-## Android and Google Play
+Follow docs/DEVICE_TEST_PLAN.md. Use the synthetic scenarios and gentle stationary phone movements only. Never stage a collision, perform dangerous driving or drop a phone from height. Record the phone model, Android version, sensor availability, GPS permission state, and observed results.
 
-The CI workflow produces a **debug APK** for engineering checks; this is not a signed production release. Before any Play Store submission, verify all data and permissions, complete physical-device testing, review the privacy policy, prepare a signed Android App Bundle (AAB), and complete Play Console declarations. See [PLAYSTORE_PACKAGE_GUIDE.md](./PLAYSTORE_PACKAGE_GUIDE.md).
+## Safety statement
 
-## Privacy
-
-See [PRIVACY_POLICY.md](./PRIVACY_POLICY.md). The policy is a project draft and must be checked against the exact behavior of any release build before publication.
-
-## License
-
-MIT — see [LICENSE](./LICENSE).
+The app records an experimental local incident only. It does not guarantee detection or dispatch emergency help. In a real emergency, contact local emergency services directly.

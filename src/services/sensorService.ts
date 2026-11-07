@@ -10,6 +10,7 @@ interface NativeSensorFrame {
   beta: number;
   gamma: number;
   monotonicTimestampMs: number;
+  gyroscopeFresh?: boolean;
 }
 
 interface NativeSensorBridgePlugin {
@@ -30,18 +31,21 @@ const round1 = (v: number): number => Math.round(v * 10) / 10;
 
 type SensorCallback = (point: SensorDataPoint) => void;
 
-class SensorService {
+export class SensorService {
   private callbacks: Set<SensorCallback> = new Set();
   private timerId: number | null = null;
   private isSimulated: boolean = true;
   private isHardwareAvailable: boolean = false;
+  private isGyroscopeAvailable: boolean = false;
   private hasPermission: boolean = false;
   private hardwareListenerAttached: boolean = false;
+  private deviceMotionHandler: ((event: DeviceMotionEvent) => void) | null = null;
+  private visibilityHandler: (() => void) | null = null;
   private nativeSensorListener: PluginListenerHandle | null = null;
   private nativeSensorStarted = false;
   private lastHardwareSampleAt: number = 0;
   private lastGyroSampleAt: number = 0;
-  private readonly hardwareFreshnessMs = 2000;
+  private readonly hardwareFreshnessMs = 250;
 
   // Real sensor state cache
   private currentRawAccel = { x: 0, y: 0, z: 9.81 };
@@ -62,6 +66,16 @@ class SensorService {
 
   constructor() {
     this.checkHardwareSupport();
+    if (typeof document !== 'undefined') {
+      this.visibilityHandler = () => {
+        if (document.hidden) {
+          this.isSimulated = true;
+          this.detachHardwareListeners();
+          void this.stopNativeSensorStream();
+        }
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
   }
 
   private checkHardwareSupport() {
@@ -83,10 +97,25 @@ class SensorService {
     return this.isHardwareAvailable;
   }
 
+  public getHardwareStatus() {
+    const lastSampleAgeMs = this.lastHardwareSampleAt > 0 ? Date.now() - this.lastHardwareSampleAt : null;
+    const gyroAgeMs = this.lastGyroSampleAt > 0 ? Date.now() - this.lastGyroSampleAt : null;
+    const active = !this.isSimulated && this.hasPermission && lastSampleAgeMs !== null && lastSampleAgeMs <= this.hardwareFreshnessMs;
+    return {
+      accelerometerAvailable: this.isHardwareAvailable,
+      gyroscopeAvailable: this.isGyroscopeAvailable,
+      gyroscopeActive: active && gyroAgeMs !== null && gyroAgeMs <= this.hardwareFreshnessMs,
+      active,
+      simulated: this.isSimulated,
+      lastSampleAgeMs
+    };
+  }
+
   public setIsSimulated(sim: boolean): void {
     if (sim) {
       this.isSimulated = true;
       this.currentScenario = 'NONE';
+      this.detachHardwareListeners();
       void this.stopNativeSensorStream();
       return;
     }
@@ -115,12 +144,13 @@ class SensorService {
               z: frame.z / 9.80665
             };
             // Gyroscope values are converted to degrees/second in the native bridge.
-            this.currentRawGyro = {
-              alpha: frame.alpha,
-              beta: frame.beta,
-              gamma: frame.gamma
-            };
-            this.lastGyroSampleAt = Date.now();
+            if (this.isGyroscopeAvailable && frame.gyroscopeFresh === true) {
+              this.currentRawGyro = { alpha: frame.alpha, beta: frame.beta, gamma: frame.gamma };
+              this.lastGyroSampleAt = Date.now();
+            } else {
+              this.currentRawGyro = { alpha: 0, beta: 0, gamma: 0 };
+              this.lastGyroSampleAt = 0;
+            }
             this.lastHardwareSampleAt = Date.now();
             this.isSimulated = false;
           });
@@ -129,6 +159,7 @@ class SensorService {
         const status = await NativeSensorBridge.start({ samplingPeriodUs: 20000 });
         this.nativeSensorStarted = true;
         this.isHardwareAvailable = status.accelerometerAvailable;
+        this.isGyroscopeAvailable = status.gyroscopeAvailable;
         this.hasPermission = status.accelerometerAvailable;
         if (!status.accelerometerAvailable) {
           this.isSimulated = true;
@@ -183,47 +214,63 @@ class SensorService {
   }
 
   private async stopNativeSensorStream(): Promise<void> {
-    if (!this.nativeSensorStarted) return;
+    const wasStarted = this.nativeSensorStarted;
     this.nativeSensorStarted = false;
-    try {
-      await NativeSensorBridge.stop();
-    } catch (err) {
-      console.warn('Unable to stop native sensor stream:', err);
+    if (wasStarted) {
+      try { await NativeSensorBridge.stop(); }
+      catch (err) { console.warn('Unable to stop native sensor stream:', err); }
     }
     this.nativeSensorListener?.remove();
     this.nativeSensorListener = null;
     this.hasPermission = false;
+    this.lastHardwareSampleAt = 0;
+    this.lastGyroSampleAt = 0;
     this.isSimulated = true;
+  }
+
+  private detachHardwareListeners(): void {
+    if (this.deviceMotionHandler && typeof window !== 'undefined') {
+      window.removeEventListener('devicemotion', this.deviceMotionHandler);
+    }
+    this.deviceMotionHandler = null;
+    this.hardwareListenerAttached = false;
+    this.hasPermission = false;
+    this.lastHardwareSampleAt = 0;
+    this.lastGyroSampleAt = 0;
   }
 
   private attachHardwareListeners() {
     if (this.hardwareListenerAttached) return;
     this.hardwareListenerAttached = true;
-    window.addEventListener('devicemotion', (event) => {
+    this.deviceMotionHandler = (event: DeviceMotionEvent) => {
       const receivedAt = Date.now();
       const acc = event.accelerationIncludingGravity || event.acceleration;
-      if (acc) {
-        // Convert to g (1g = 9.80665 m/s²)
+      const hasAcceleration = Boolean(acc && [acc.x, acc.y, acc.z].some(
+        (value) => typeof value === 'number' && Number.isFinite(value)
+      ));
+      if (acc && hasAcceleration) {
         this.currentRawAccel = {
-          x: (acc.x || 0) / 9.80665,
-          y: (acc.y || 0) / 9.80665,
-          z: (acc.z || 9.80665) / 9.80665
+          x: (acc.x ?? 0) / 9.80665,
+          y: (acc.y ?? 0) / 9.80665,
+          z: (acc.z ?? 9.80665) / 9.80665
         };
-      }
-      const rot = event.rotationRate;
-      if (rot) {
-        this.currentRawGyro = {
-          alpha: rot.alpha || 0,
-          beta: rot.beta || 0,
-          gamma: rot.gamma || 0
-        };
-        this.lastGyroSampleAt = receivedAt;
-      }
-      if (acc || rot) {
         this.lastHardwareSampleAt = receivedAt;
         this.isSimulated = false;
       }
-    });
+      const rot = event.rotationRate;
+      if (rot && [rot.alpha, rot.beta, rot.gamma].some((value) => typeof value === 'number' && Number.isFinite(value))) {
+        this.currentRawGyro = {
+          alpha: rot.alpha ?? 0,
+          beta: rot.beta ?? 0,
+          gamma: rot.gamma ?? 0
+        };
+        this.lastGyroSampleAt = receivedAt;
+        this.isGyroscopeAvailable = true;
+      } else {
+        this.lastGyroSampleAt = 0;
+      }
+    };
+    window.addEventListener('devicemotion', this.deviceMotionHandler);
   }
 
   public subscribe(cb: SensorCallback): () => void {
@@ -235,6 +282,7 @@ class SensorService {
       this.callbacks.delete(cb);
       if (this.callbacks.size === 0) {
         this.stopSampling();
+        this.detachHardwareListeners();
         void this.stopNativeSensorStream();
       }
     };
@@ -317,13 +365,13 @@ class SensorService {
       x = this.currentRawAccel.x;
       y = this.currentRawAccel.y;
       z = this.currentRawAccel.z;
-      const gyroIsFresh = this.lastGyroSampleAt > 0 && now - this.lastGyroSampleAt <= 250;
+      const gyroIsFresh = this.lastGyroSampleAt > 0 && now - this.lastGyroSampleAt <= this.hardwareFreshnessMs;
       alpha = gyroIsFresh ? this.currentRawGyro.alpha : 0;
       beta = gyroIsFresh ? this.currentRawGyro.beta : 0;
       gamma = gyroIsFresh ? this.currentRawGyro.gamma : 0;
     } else {
       // No permission, unavailable hardware, or stale stream: fall back to clearly labelled simulation.
-      if (!this.isSimulated) this.isSimulated = true;
+      if (!this.isSimulated) { this.isSimulated = true; this.lastHardwareSampleAt = 0; this.lastGyroSampleAt = 0; }
       // Physics Simulation Engine
       this.simTimeSec += 0.02;
       const elapsedScenarioSec = (now - this.scenarioStartTime) / 1000;

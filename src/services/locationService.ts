@@ -1,4 +1,6 @@
 // Location service: GPS retrieval, nearest hospital calculation (Haversine), and SMS payload generation
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 import { Hospital } from '../types';
 
 export interface Coordinates {
@@ -65,22 +67,41 @@ export function getSortedHospitals(
  * Retrieves the device's real GPS position. It rejects on errors and never fabricates coordinates.
  */
 export async function getCurrentCoordinates(): Promise<Coordinates> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      let permission = await Geolocation.checkPermissions();
+      if (permission.location !== 'granted' && permission.coarseLocation !== 'granted') {
+        permission = await Geolocation.requestPermissions({ permissions: ['location'] });
+      }
+      if (permission.location !== 'granted' && permission.coarseLocation !== 'granted') {
+        throw new Error('Location permission was not granted.');
+      }
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: permission.location === 'granted',
+        timeout: 10000,
+        maximumAge: 0
+      });
+      return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy
+      };
+    } catch (error) {
+      throw new Error('Unable to obtain device location: ' +
+        (error instanceof Error ? error.message : 'permission denied, location disabled, or GPS timeout'));
+    }
+  }
+
   return new Promise((resolve, reject) => {
-    if ('geolocation' in navigator) {
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy
-          });
-        },
-        (error) => {
-          // Never silently substitute a distant demo coordinate for a failed real GPS fix.
-          // Mark the failure by rejecting so callers can present an explicit unavailable state.
-          reject(new Error(`Unable to obtain device location: ${error.message || 'permission denied or timeout'}`));
-        },
-        { timeout: 8000, enableHighAccuracy: true }
+        (position) => resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        }),
+        (error) => reject(new Error('Unable to obtain device location: ' + (error.message || 'permission denied or timeout'))),
+        { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 }
       );
     } else {
       reject(new Error('Geolocation is not supported by this environment.'));
